@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Only the lightweight deps: the tests use synthetic tracklets, no PyTorch / model downloads
+      - name: Install test dependencies
+        run: pip install numpy scikit-learn minisom joblib opencv-python-headless pytest
+
+      - name: Byte-compile every module (catches syntax errors in the full app)
+        run: python -m compileall -q app.py vtrace scripts
+
+      - name: Run unit tests
+        run: |
+          python -m pytest -q || { code=$?; [ $code -eq 5 ] && echo "No tests collected yet" || exit $code; }
