@@ -1,0 +1,9 @@
+[server]
+maxUploadSize = 500        # MB per uploaded video
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#e63946"

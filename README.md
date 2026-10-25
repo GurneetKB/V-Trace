@@ -61,7 +61,21 @@ A browser tab opens at http://localhost:8501.
 | **SOM (unsupervised)** | U-matrix of the vehicle embeddings, with crops grouped by map node. |
 | **Evaluation** | Benchmark results produced by `scripts/train_eval.py`. |
 
-**Quick smoke test without real footage:** run `python scripts/make_sample_videos.py`, then process
+### Deploy the demo on Streamlit Community Cloud (optional)
+
+The repo is ready for https://share.streamlit.io. It includes `requirements.txt` (CPU-only PyTorch), `packages.txt`
+(the system libraries OpenCV needs) and `.streamlit/config.toml`.
+
+1. Push the repo to GitHub.
+2. On share.streamlit.io, click **Create app** and pick the repo, branch `main` and main file `app.py`.
+3. Under **Advanced settings**, choose Python **3.11**. If the app runs out of memory, add `VTRACE_OCR = "0"`
+   under Secrets/Environment to turn EasyOCR off.
+4. Click **Deploy**. The first boot installs PyTorch and downloads the model weights, which takes a few minutes.
+
+Community Cloud runs on a small CPU, so keep demo clips short (10–30 s). Processing locally and presenting from
+`localhost` is the most reliable option for a live demo.
+
+**Quick smoke test without real footage:** in tab 1, click **"Generate two sample camera clips"**, or run `python scripts/make_sample_videos.py`, then process
 `sample_camA.mp4` and `sample_camB.mp4` in tab 1. For the real demo, put short CCTV/traffic clips (for example
 free traffic footage from Pexels or Pixabay, or your own recordings) in `data/videos/`, or upload them.
 

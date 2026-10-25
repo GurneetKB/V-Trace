@@ -1,4 +1,5 @@
 """Central settings for V-Trace. Edit values here rather than inside the modules."""
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,7 +26,7 @@ CROPS_PER_TRACK = 4                      # representative crops stored per track
 
 # ---------------- Descriptors ----------------
 CLIP_MODEL = ("ViT-B-32", "openai")
-ENABLE_OCR = True                        # licence-plate OCR with EasyOCR (if installed)
+ENABLE_OCR = os.environ.get("VTRACE_OCR", "1") != "0"   # licence-plate OCR (EasyOCR); VTRACE_OCR=0 disables
 
 # Vocabularies follow the VeRi-776 labels so the benchmark can evaluate them.
 COLORS = ["yellow", "orange", "green", "gray", "red", "blue", "white", "golden", "brown", "black"]

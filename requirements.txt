@@ -1,7 +1,8 @@
-# Core deep learning (CPU wheels are fine; a CUDA GPU is used automatically if present)
+# CPU-only PyTorch wheels: small enough for Streamlit Community Cloud and identical locally.
 # Pinned to a widely used release: Windows Smart App Control blocks the brand-new torch DLLs.
-torch==2.5.1
-torchvision==0.20.1
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
 
 # Detection + multi-object tracking (YOLO + ByteTrack)
 ultralytics>=8.3
@@ -10,7 +11,7 @@ lap>=0.5          # linear assignment used by ByteTrack
 # Vision-language model (CLIP) for colour / type / distinctive-cue evidence
 open_clip_torch>=2.24
 
-# Optional licence-plate OCR (the app still runs if this fails to install)
+# Optional licence-plate OCR (set VTRACE_OCR=0 to switch it off, e.g. on low-memory hosting)
 easyocr>=1.7
 
 # Classical ML: Random Forest, linear probes, PCA; unsupervised SOM

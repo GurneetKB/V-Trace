@@ -47,6 +47,18 @@ def describe_tracklet(t):
 
 
 index = get_index()
+
+with st.sidebar:
+    st.header("V-Trace status")
+    st.metric("Indexed tracklets", len(index))
+    st.write(f"**Videos / cameras:** {', '.join(index.videos()) or 'none yet'}")
+    st.write(f"**Stage 2 matcher:** {'Random Forest (trained)' if get_rf() else 'weighted fusion (RF not trained yet)'}")
+    st.write(f"**Colour/type model:** {'supervised probe' if config.ATTR_PROBE_PATH.exists() else 'CLIP zero-shot'}")
+    st.write(f"**Plate OCR:** {'on' if config.ENABLE_OCR else 'off'}")
+    st.write(f"**Confirmed target:** {st.session_state.get('confirmed', '-')}")
+    st.divider()
+    st.caption("Workflow: 1 upload → 2 describe & search → confirm → 3 re-identify")
+
 st.title("🚗 V-Trace")
 st.caption("Multi-attribute vehicle search & re-identification · **Describe → Search → Confirm → Re-identify** · "
            "Results are ranked candidates for human review, not definitive identification.")
@@ -60,6 +72,10 @@ with tabs[0]:
     st.write("Each video is treated as one camera. Vehicles are detected (YOLO), tracked within the video "
              "(ByteTrack) and every tracklet is described (CNN appearance, CLIP colour/type/cues, HSV colour, plate OCR).")
     files = st.file_uploader("Videos", type=["mp4", "avi", "mov", "mkv"], accept_multiple_files=True)
+    if st.button("No footage? Generate two sample camera clips"):
+        from vtrace.samples import make_sample_videos
+        made = make_sample_videos()
+        st.success(f"Created {', '.join(p.name for p in made)} – select them below and click Process.")
     existing = sorted(p for p in config.VIDEO_DIR.iterdir() if p.suffix.lower() in {".mp4", ".avi", ".mov", ".mkv"})
     use_existing = st.multiselect("…or process videos already in data/videos", [p.name for p in existing])
     if st.button("Process videos", type="primary", disabled=not (files or use_existing)):
