@@ -7,3 +7,4 @@ data/VeRi/
 *.pt
 models/*.joblib
 .claude/
+.pytest_cache/
