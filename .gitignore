@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+data/videos/
+data/index/
+data/cache/
+data/VeRi/
+*.pt
+models/*.joblib
+.claude/

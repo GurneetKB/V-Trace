@@ -1,0 +1,27 @@
+# Core deep learning (CPU wheels are fine; a CUDA GPU is used automatically if present)
+# Pinned to a widely used release: Windows Smart App Control blocks the brand-new torch DLLs.
+torch==2.5.1
+torchvision==0.20.1
+
+# Detection + multi-object tracking (YOLO + ByteTrack)
+ultralytics>=8.3
+lap>=0.5          # linear assignment used by ByteTrack
+
+# Vision-language model (CLIP) for colour / type / distinctive-cue evidence
+open_clip_torch>=2.24
+
+# Optional licence-plate OCR (the app still runs if this fails to install)
+easyocr>=1.7
+
+# Classical ML: Random Forest, linear probes, PCA; unsupervised SOM
+scikit-learn>=1.4
+minisom>=2.3.2
+
+# App + utilities
+streamlit>=1.35
+opencv-python>=4.9
+numpy>=1.26
+pandas>=2.1
+matplotlib>=3.8
+joblib>=1.3
+tqdm>=4.66
