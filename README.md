@@ -112,6 +112,15 @@ Without VeRi the app still runs. It uses CLIP zero-shot attributes and the weigh
 degraded per observation. This isolates the hypothesis that multi-evidence retrieval degrades more gracefully
 when plate evidence fails. Real plates in the demo videos come from EasyOCR.
 
+### Unit tests
+
+The matching logic (plate matching, Stage-1 search, pairwise features, fusion, Random Forest, SOM) is tested on
+synthetic tracklets, so the tests need no models or downloads:
+
+```bash
+.venv\Scripts\python -m pytest -q
+```
+
 ## 4. How the four technique groups are covered
 
 | Technique group | Where in the code |
