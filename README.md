@@ -54,7 +54,7 @@ A browser tab opens at http://localhost:8501.
 
 | Tab | What it does |
 |---|---|
-| **1 · Upload & index** | Upload several videos. Each one is detected, tracked and described, then saved to `data/index/`. |
+| **1 · Upload videos** | Upload or select the camera videos for this session and click **Process videos**. Only these videos are searched in steps 2–3. A video already processed with the same speed setting loads instantly from the cache in `data/index/`. |
 | **2 · Describe & search** | **Stage 1.** Enter colour, type, partial plate (`?` = unknown character), cues and free text. You get ranked candidate tracklets with the evidence for each field. Click **Confirm** on one. |
 | **3 · Confirm & re-identify** | **Stage 2.** The confirmed tracklet becomes the visual query. Ranked sightings from the other videos, with the method (appearance only / weighted fusion / Random Forest), an optional SOM pre-filter, timestamps, the pairwise evidence and the frame. |
 | **Track review** | Tick the clean tracklets (no ID switch) to get a manually checked tracking accuracy for the demo clips. |

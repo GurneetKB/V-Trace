@@ -46,15 +46,18 @@ def describe_tracklet(t):
 
 
 
-index = get_index()
+index = get_index()                                   # on-disk cache of every video ever processed (hidden)
+active = st.session_state.get("active", [])          # the videos processed in THIS session
+if "view" not in st.session_state or st.session_state.get("view_for") != active:
+    st.session_state.view, st.session_state.view_for = index.subset(active), list(active)
+view = st.session_state.view                          # all searching / Re-ID happens on these videos only
 
 with st.sidebar:
     st.header("V-Trace status")
-    st.metric("Indexed tracklets", len(index))
-    st.write(f"**Videos / cameras:** {', '.join(index.videos()) or 'none yet'}")
+    st.metric("Vehicles found", len(view))
+    st.write(f"**Videos in this session:** {', '.join(active) or 'none yet'}")
     st.write(f"**Stage 2 matcher:** {'Random Forest (trained)' if get_rf() else 'weighted fusion (RF not trained yet)'}")
     st.write(f"**Colour/type model:** {'supervised probe' if config.ATTR_PROBE_PATH.exists() else 'CLIP zero-shot'}")
-    st.write(f"**Plate OCR:** {'on' if config.ENABLE_OCR else 'off'}")
     st.write(f"**Confirmed target:** {st.session_state.get('confirmed', '-')}")
     st.divider()
     st.caption("Workflow: 1 upload → 2 describe & search → confirm → 3 re-identify")
@@ -63,28 +66,28 @@ st.title("🚗 V-Trace")
 st.caption("Multi-attribute vehicle search & re-identification · **Describe → Search → Confirm → Re-identify** · "
            "Results are ranked candidates for human review, not definitive identification.")
 
-tabs = st.tabs(["1 · Upload & index", "2 · Describe & search", "3 · Confirm & re-identify",
+tabs = st.tabs(["1 · Upload videos", "2 · Describe & search", "3 · Confirm & re-identify",
                 "Track review", "SOM (unsupervised)", "Evaluation"])
 
 # ------------------------------------------------------------------ 1. upload
 with tabs[0]:
-    st.subheader("Upload camera videos")
-    st.write("Each video is treated as one camera. Vehicles are detected (YOLO), tracked within the video "
-             "(ByteTrack) and every tracklet is described (CNN appearance, CLIP colour/type/cues, HSV colour, plate OCR).")
-    files = st.file_uploader("Videos", type=["mp4", "avi", "mov", "mkv"], accept_multiple_files=True)
+    st.subheader("Step 1 – choose the camera videos to search")
+    st.write("Each video is treated as one camera. Only the videos you process here are searched in steps 2 and 3.")
+    files = st.file_uploader("Upload videos", type=["mp4", "avi", "mov", "mkv"], accept_multiple_files=True)
     if st.button("No footage? Generate two sample camera clips"):
         from vtrace.samples import make_sample_videos
         made = make_sample_videos()
         st.success(f"Created {', '.join(p.name for p in made)} – select them below and click Process.")
     existing = sorted(p for p in config.VIDEO_DIR.iterdir() if p.suffix.lower() in {".mp4", ".avi", ".mov", ".mkv"})
-    use_existing = st.multiselect("…or process videos already in data/videos", [p.name for p in existing])
+    use_existing = st.multiselect("…or select videos already on this computer (data/videos)", [p.name for p in existing])
     presets = {"Fast": (5, False), "Balanced": (config.FRAME_STRIDE, config.ENABLE_OCR), "Detailed": (2, config.ENABLE_OCR)}
     speed = st.radio("Processing speed", list(presets), index=1, horizontal=True,
                      help="Fast: every 5th frame, no plate OCR (about 3x quicker; good for a live demo). "
                           "Balanced: every 3rd frame + OCR on large vehicles. Detailed: every 2nd frame + OCR.")
     stride, use_ocr = presets[speed]
     st.caption(f"Analyses every {stride}{'nd' if stride == 2 else 'rd' if stride == 3 else 'th'} frame · "
-               f"plate OCR {'on' if use_ocr else 'off'}")
+               f"plate OCR {'on' if use_ocr else 'off'} · videos already processed with the same setting load instantly")
+
     if st.button("Process videos", type="primary", disabled=not (files or use_existing)):
         import time
         t0 = time.time()
@@ -94,39 +97,38 @@ with tabs[0]:
             dest.write_bytes(f.getbuffer())
             paths.append(dest)
         paths += [config.VIDEO_DIR / n for n in use_existing if config.VIDEO_DIR / n not in paths]
-        fe = get_extractor()
         for p in paths:
+            if index.is_processed(p, stride, use_ocr):
+                st.write(f"✔ {p.name} – already processed with these settings, loaded instantly")
+                continue
             bar = st.progress(0.0, text=f"Processing {p.name}")
-            n = index.add_video(p, fe, progress=lambda x, b=bar, name=p.name: b.progress(
+            n = index.add_video(p, get_extractor(), progress=lambda x, b=bar, name=p.name: b.progress(
                 min(x, 1.0), text=f"Processing {name} – {'detecting & tracking' if x < 0.8 else 'describing vehicles'}"),
                 stride=stride, read_plate=use_ocr)
-            bar.progress(1.0, text=f"{p.name}: {n} vehicle tracklets")
-        index.fit_som()
+            bar.progress(1.0, text=f"✔ {p.name}: {n} vehicles")
         index.save()
-        st.success(f"Index now holds {len(index)} tracklets from {len(index.videos())} videos "
-                   f"(processed in {time.time() - t0:.0f} s).")
+        # the processed videos become this session's search scope; earlier results no longer apply
+        st.session_state.active = [p.stem for p in paths]
+        for key in ("stage1", "confirmed"):
+            st.session_state.pop(key, None)
+        st.session_state.done_msg = f"Ready in {time.time() - t0:.0f} s – go to step 2 to describe the vehicle."
+        st.rerun()
 
-    if len(index):
-        st.subheader("Current vehicle index")
-        rows = [{"video / camera": t["camera"], "track": t["track_id"], "class": t["yolo_class"],
-                 "colour": top_label(t["color_probs"], config.COLORS), "type": top_label(t["type_probs"], config.TYPES),
-                 "plate": t["plate"] or "-", "start": fmt_time(t["start_t"]), "end": fmt_time(t["end_t"]),
-                 "detections": t["n_obs"]} for t in index.tracklets]
-        st.dataframe(pd.DataFrame(rows), hide_index=True)
-        c1, c2 = st.columns(2)
-        drop = c1.selectbox("Remove a video from the index", ["-"] + index.videos())
-        if c2.button("Remove") and drop != "-":
-            index.remove_video(drop)
-            index.fit_som()
-            index.save()
-            st.rerun()
-    else:
-        st.info("The index is empty - upload videos to begin.")
+    if active:
+        st.success(st.session_state.pop("done_msg", "Videos ready – go to step 2 to describe the vehicle."))
+        cols = st.columns(min(len(active), 4))
+        for i, v in enumerate(active):
+            n = sum(t["video"] == v for t in view.tracklets)
+            cols[i % len(cols)].metric(v, f"{n} vehicles")
 
 # ------------------------------------------------------------------ 2. describe & search
 with tabs[1]:
-    st.subheader("Stage 1 – describe the target vehicle")
-    st.write("Fill in only what you know. Missing fields are ignored; use `?` for unknown plate characters (e.g. `SGX12??`).")
+    st.subheader("Step 2 – describe the target vehicle")
+    if not active:
+        st.info("Process your videos in step 1 first.")
+    else:
+        st.write(f"Searching **{len(active)} video(s)**: {', '.join(active)}. Fill in only what you know; "
+                 "missing fields are ignored. Use `?` for unknown plate characters (e.g. `SGX12??`).")
     c1, c2, c3 = st.columns(3)
     color = c1.selectbox("Colour", ["(unknown)"] + config.COLORS)
     vtype = c2.selectbox("Vehicle type", ["(unknown)"] + config.TYPES)
@@ -134,13 +136,12 @@ with tabs[1]:
     c4, c5 = st.columns(2)
     cues = c4.multiselect("Distinctive cues", list(config.CUES))
     free_text = c5.text_input("Other description (free text, CLIP)", placeholder="e.g. taxi with roof sign")
-    videos = st.multiselect("Search in videos (default: all)", index.videos())
     top_k = st.slider("Candidates to show", 4, 40, 12, 4)
 
-    if st.button("Search", type="primary", disabled=not len(index)):
+    if st.button("Search", type="primary", disabled=not len(view)):
         st.session_state.stage1 = search.describe_search(
-            index, color if color != "(unknown)" else None, vtype if vtype != "(unknown)" else None,
-            plate or None, cues, free_text or None, get_extractor() if free_text else None, videos or None, top_k)
+            view, color if color != "(unknown)" else None, vtype if vtype != "(unknown)" else None,
+            plate or None, cues, free_text or None, get_extractor() if free_text else None, None, top_k)
 
     for row_start in range(0, len(st.session_state.get("stage1", [])), 4):
         cols = st.columns(4)
@@ -161,10 +162,10 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("Stage 2 – cross-video re-identification of the confirmed vehicle")
     uid = st.session_state.get("confirmed")
-    if not uid or uid not in {t["uid"] for t in index.tracklets}:
+    if not uid or uid not in {t["uid"] for t in view.tracklets}:
         st.info("Confirm a candidate in tab 2 first.")
     else:
-        q = index.get(uid)
+        q = view.get(uid)
         c1, c2 = st.columns([1, 2])
         with c1:
             st.markdown("**Confirmed target (visual query)**")
@@ -183,9 +184,9 @@ with tabs[2]:
         if method == "random forest" and rf is None:
             st.warning("No trained Random Forest found – using weighted fusion. Run `python scripts/train_eval.py`.")
 
-        hits = reid.reid_search(index, q, method, rf, use_som, radius, same_video, top_k=20)
+        hits = reid.reid_search(view, q, method, rf, use_som, radius, same_video, top_k=20)
         if not hits:
-            st.warning("No candidate tracklets in the other videos.")
+            st.warning("No candidate vehicles in the other videos of this session.")
         for rank, (score, t, f) in enumerate(hits, 1):
             with st.container(border=True):
                 a, b, c = st.columns([2, 2, 3])
@@ -203,9 +204,9 @@ with tabs[3]:
     st.subheader("Manual tracking check")
     st.write("Tick tracklets that contain a single vehicle with no ID switch. This gives the manually checked "
              "tracking accuracy reported for the demo clips (proposal: Data Sources and Known Limitations).")
-    if len(index):
-        vid = st.selectbox("Video", index.videos(), key="review_video")
-        ts = [t for t in index.tracklets if t["video"] == vid]
+    if len(view):
+        vid = st.selectbox("Video", view.videos(), key="review_video")
+        ts = [t for t in view.tracklets if t["video"] == vid]
         review_file = config.RESULTS_DIR / f"tracking_review_{vid}.csv"
         prev = pd.read_csv(review_file).set_index("uid")["clean"].to_dict() if review_file.exists() else {}
         for row_start in range(0, len(ts), 8):
@@ -225,22 +226,22 @@ with tabs[4]:
     st.subheader("Self-Organizing Map of vehicle appearance embeddings")
     st.write("Unsupervised: no identity labels are used. Nearby nodes hold visually similar vehicles; "
              "darker U-matrix cells mark boundaries between groups.")
-    if index.som is None:
-        st.info("Needs at least 4 tracklets in the index.")
+    if view.som is None:
+        st.info("Process videos in step 1 first (needs at least 4 vehicles).")
     else:
-        som = index.som
-        bmus = som.bmus(index.matrix("app_emb"))
+        som = view.som
+        bmus = som.bmus(view.matrix("app_emb"))
         fig, ax = plt.subplots(figsize=(5, 5))
         ax.imshow(som.u_matrix().T, cmap="bone_r", origin="lower")
         rng = np.random.default_rng(0)
-        for (i, j), t in zip(bmus, index.tracklets):
+        for (i, j), t in zip(bmus, view.tracklets):
             ax.scatter(i + rng.uniform(-.3, .3), j + rng.uniform(-.3, .3), s=25, edgecolors="k",
                        c=config.COLORS[int(np.argmax(t["color_probs"]))].replace("golden", "goldenrod"))
         ax.set_title(f"{som.grid}x{som.grid} SOM · dots = tracklets (predicted colour)")
         c1, c2 = st.columns([1, 1])
         c1.pyplot(fig)
         nodes = defaultdict(list)
-        for b, t in zip(bmus, index.tracklets):
+        for b, t in zip(bmus, view.tracklets):
             nodes[b].append(t)
         with c2:
             for node, members in sorted(nodes.items(), key=lambda kv: -len(kv[1]))[:10]:
