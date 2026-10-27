@@ -86,8 +86,29 @@ Community Cloud runs on a small CPU, so keep demo clips short (10–30 s). Proce
 `localhost` is the most reliable option for a live demo.
 
 **Quick smoke test without real footage:** in tab 1, click **"Generate two sample camera clips"**, or run `python scripts/make_sample_videos.py`, then process
-`sample_camA.mp4` and `sample_camB.mp4` in tab 1. For the real demo, put short CCTV/traffic clips (for example
-free traffic footage from Pexels or Pixabay, or your own recordings) in `data/videos/`, or upload them.
+`sample_camA.mp4` and `sample_camB.mp4` in tab 1.
+
+**Real-footage demo:** follow [docs/DEMO_DATA.md](docs/DEMO_DATA.md) to download two CC-BY Ljubljana traffic
+clips, then run:
+
+```bash
+.venv\Scripts\python scripts/prepare_demo_clips.py
+```
+
+```bash
+.venv\Scripts\python scripts/build_index.py data/videos/camA_main_road.mp4 data/videos/camB_second_view.mp4 data/videos/camC_other_road.mp4
+```
+
+```bash
+.venv\Scripts\python scripts/demo_walkthrough.py --color white --cue "sticker / decal" --confirm-video camA_main_road
+```
+
+The last command saves a scripted Describe → Search → Confirm → Re-identify run to `results/demo/`, including
+the evidence images and a Markdown summary for the report.
+
+**Troubleshooting (Windows):** an error saying *"An Application Control policy has blocked this file"* comes from
+Windows Smart App Control. It is sometimes intermittent; run the command again. If it keeps happening for one
+package, reinstall an older, widely used version of that package.
 
 ## 3. Benchmark data (VeRi-776) and training
 
