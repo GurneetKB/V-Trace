@@ -35,15 +35,15 @@ class VehicleIndex:
         for sub in ("crops", "frames"):
             shutil.rmtree(config.INDEX_DIR / sub / name, ignore_errors=True)
 
-    def add_video(self, video_path, extractor, camera=None, progress=None):
+    def add_video(self, video_path, extractor, camera=None, progress=None, stride=None, read_plate=True):
         """Detect + track + describe every vehicle in a video and add it to the index."""
         from pathlib import Path
         name = Path(video_path).stem
         self.remove_video(name)
         track_prog = (lambda f: progress(0.8 * f)) if progress else None
-        tracklets, crops = process_video(video_path, camera, track_prog)
+        tracklets, crops = process_video(video_path, camera, track_prog, stride)
         for i, t in enumerate(tracklets):
-            t.update(extractor.describe(crops[t["uid"]]))
+            t.update(extractor.describe(crops[t["uid"]], read_plate=read_plate))
             if t["yolo_class"] == "motorcycle":           # outside the CLIP car-type vocabulary
                 t["type_probs"] = np.zeros(len(config.TYPES))
             if progress:

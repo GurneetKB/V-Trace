@@ -119,10 +119,14 @@ class FeatureExtractor:
     def read_plate(self, crops_bgr):
         if self.ocr is None:
             return "", 0.0
+        # Only the largest crops, and only when the vehicle is big enough for a legible plate (OCR is the slowest step)
+        crops = sorted((c for c in crops_bgr if c.shape[1] >= config.OCR_MIN_WIDTH), key=lambda c: -c.shape[1])
         best, best_conf = "", 0.0
-        for c in crops_bgr:
-            big = cv2.resize(c, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-            for _, text, conf in self.ocr.readtext(big, allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"):
+        for c in crops[:config.OCR_MAX_CROPS]:
+            c = c[int(0.35 * c.shape[0]):]                      # plates sit in the lower part of the vehicle
+            if c.shape[1] < 300:
+                c = cv2.resize(c, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+            for _, text, conf in self.ocr.readtext(c, allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"):
                 t = plate_utils.normalize(text)
                 if 4 <= len(t) <= 10 and any(ch.isdigit() for ch in t) and conf > max(best_conf, 0.4):
                     best, best_conf = t, float(conf)

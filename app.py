@@ -78,7 +78,16 @@ with tabs[0]:
         st.success(f"Created {', '.join(p.name for p in made)} – select them below and click Process.")
     existing = sorted(p for p in config.VIDEO_DIR.iterdir() if p.suffix.lower() in {".mp4", ".avi", ".mov", ".mkv"})
     use_existing = st.multiselect("…or process videos already in data/videos", [p.name for p in existing])
+    presets = {"Fast": (5, False), "Balanced": (config.FRAME_STRIDE, config.ENABLE_OCR), "Detailed": (2, config.ENABLE_OCR)}
+    speed = st.radio("Processing speed", list(presets), index=1, horizontal=True,
+                     help="Fast: every 5th frame, no plate OCR (about 3x quicker; good for a live demo). "
+                          "Balanced: every 3rd frame + OCR on large vehicles. Detailed: every 2nd frame + OCR.")
+    stride, use_ocr = presets[speed]
+    st.caption(f"Analyses every {stride}{'nd' if stride == 2 else 'rd' if stride == 3 else 'th'} frame · "
+               f"plate OCR {'on' if use_ocr else 'off'}")
     if st.button("Process videos", type="primary", disabled=not (files or use_existing)):
+        import time
+        t0 = time.time()
         paths = []
         for f in files or []:
             dest = config.VIDEO_DIR / f.name
@@ -88,11 +97,14 @@ with tabs[0]:
         fe = get_extractor()
         for p in paths:
             bar = st.progress(0.0, text=f"Processing {p.name}")
-            n = index.add_video(p, fe, progress=lambda x, b=bar, name=p.name: b.progress(min(x, 1.0), text=f"Processing {name}"))
+            n = index.add_video(p, fe, progress=lambda x, b=bar, name=p.name: b.progress(
+                min(x, 1.0), text=f"Processing {name} – {'detecting & tracking' if x < 0.8 else 'describing vehicles'}"),
+                stride=stride, read_plate=use_ocr)
             bar.progress(1.0, text=f"{p.name}: {n} vehicle tracklets")
         index.fit_som()
         index.save()
-        st.success(f"Index now holds {len(index)} tracklets from {len(index.videos())} videos.")
+        st.success(f"Index now holds {len(index)} tracklets from {len(index.videos())} videos "
+                   f"(processed in {time.time() - t0:.0f} s).")
 
     if len(index):
         st.subheader("Current vehicle index")
