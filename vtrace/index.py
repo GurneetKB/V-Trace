@@ -1,5 +1,6 @@
 """Searchable vehicle index: one entry per tracklet with all of its descriptors."""
 import shutil
+from pathlib import Path
 
 import joblib
 import numpy as np
@@ -15,12 +16,15 @@ class VehicleIndex:
     def __init__(self, tracklets=None):
         self.tracklets = tracklets or []
         self.som = None
+        self.processed = {}  # video name -> signature of the file + settings it was processed with
 
     # ---------- persistence ----------
     @classmethod
     def load(cls, path=INDEX_FILE):
         if path.exists():
-            return joblib.load(path)
+            index = joblib.load(path)
+            index.__dict__.setdefault("processed", {})  # indexes saved before caching existed
+            return index
         return cls()
 
     def save(self, path=INDEX_FILE):
@@ -32,16 +36,27 @@ class VehicleIndex:
 
     def remove_video(self, name):
         self.tracklets = [t for t in self.tracklets if t["video"] != name]
+        self.processed.pop(name, None)
         for sub in ("crops", "frames"):
             shutil.rmtree(config.INDEX_DIR / sub / name, ignore_errors=True)
 
+    @staticmethod
+    def signature(video_path, stride, read_plate):
+        """Identifies a video file + processing settings, so unchanged videos are not reprocessed."""
+        st = Path(video_path).stat()
+        return (st.st_size, int(st.st_mtime), stride or config.FRAME_STRIDE, bool(read_plate))
+
+    def is_processed(self, video_path, stride=None, read_plate=True):
+        name, sig = Path(video_path).stem, self.signature(video_path, stride, read_plate)
+        return name in self.processed and self.processed[name] == sig
+
     def add_video(self, video_path, extractor, camera=None, progress=None, stride=None, read_plate=True):
         """Detect + track + describe every vehicle in a video and add it to the index."""
-        from pathlib import Path
         name = Path(video_path).stem
         self.remove_video(name)
         track_prog = (lambda f: progress(0.8 * f)) if progress else None
         tracklets, crops = process_video(video_path, camera, track_prog, stride)
+        self.processed[name] = self.signature(video_path, stride, read_plate)
         for i, t in enumerate(tracklets):
             t.update(extractor.describe(crops[t["uid"]], read_plate=read_plate))
             if t["yolo_class"] == "motorcycle":           # outside the CLIP car-type vocabulary
@@ -57,6 +72,12 @@ class VehicleIndex:
         else:
             self.som = None
         return self.som
+
+    def subset(self, videos):
+        """A view holding only the given videos (what the user is currently working with), with its own SOM."""
+        view = VehicleIndex([t for t in self.tracklets if t["video"] in set(videos)])
+        view.fit_som()
+        return view
 
     # ---------- access ----------
     def get(self, uid):
