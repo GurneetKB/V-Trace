@@ -19,7 +19,7 @@ YOLO_WEIGHTS = "yolo11n.pt"              # pretrained COCO detector, auto-downlo
 TRACKER_CFG = "bytetrack.yaml"           # ByteTrack (ships with ultralytics)
 VEHICLE_CLASSES = {2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}  # COCO ids
 DET_CONF = 0.30
-FRAME_STRIDE = 2                         # process every Nth frame (speed vs. accuracy)
+FRAME_STRIDE = 3                         # process every Nth frame (speed vs. accuracy)
 MIN_TRACK_LEN = 4                        # drop tracks with fewer detections (noise)
 MIN_CROP_SIDE = 32                       # ignore tiny boxes when choosing crops
 CROPS_PER_TRACK = 4                      # representative crops stored per tracklet
@@ -27,6 +27,8 @@ CROPS_PER_TRACK = 4                      # representative crops stored per track
 # ---------------- Descriptors ----------------
 CLIP_MODEL = ("ViT-B-32", "openai")
 ENABLE_OCR = os.environ.get("VTRACE_OCR", "1") != "0"   # licence-plate OCR (EasyOCR); VTRACE_OCR=0 disables
+OCR_MIN_WIDTH = 160                      # px; plates on smaller vehicle crops are not legible, skip OCR
+OCR_MAX_CROPS = 2                        # OCR only the largest crops of each tracklet
 
 # Vocabularies follow the VeRi-776 labels so the benchmark can evaluate them.
 COLORS = ["yellow", "orange", "green", "gray", "red", "blue", "white", "golden", "brown", "black"]

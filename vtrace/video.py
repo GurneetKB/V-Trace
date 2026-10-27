@@ -38,7 +38,7 @@ def fmt_time(t):
     return f"{int(t // 60):02d}:{t % 60:05.2f}"
 
 
-def process_video(video_path, camera=None, progress=None):
+def process_video(video_path, camera=None, progress=None, stride=None):
     """Detect and track vehicles in one video.
 
     Returns (tracklets, crops) where tracklets is a list of metadata dicts and
@@ -46,6 +46,7 @@ def process_video(video_path, camera=None, progress=None):
     """
     from ultralytics import YOLO
 
+    stride = stride or config.FRAME_STRIDE
     video_path = Path(video_path)
     name = video_path.stem
     camera = camera or name
@@ -60,35 +61,39 @@ def process_video(video_path, camera=None, progress=None):
     tracks = {}
     idx = 0
     while True:
+        if idx % stride:                         # skipped frame: grab without decoding it
+            if not cap.grab():
+                break
+            idx += 1
+            continue
         ok, frame = cap.read()
         if not ok:
             break
-        if idx % config.FRAME_STRIDE == 0:
-            h, w = frame.shape[:2]
-            res = model.track(frame, persist=True, tracker=config.TRACKER_CFG, conf=config.DET_CONF,
-                              classes=list(config.VEHICLE_CLASSES), verbose=False)[0]
-            if res.boxes is not None and res.boxes.id is not None:
-                boxes = res.boxes.xyxy.cpu().numpy()
-                ids = res.boxes.id.int().cpu().tolist()
-                clss = res.boxes.cls.int().cpu().tolist()
-                confs = res.boxes.conf.cpu().tolist()
-                for box, tid, cls, conf in zip(boxes, ids, clss, confs):
-                    tr = tracks.setdefault(tid, {"frames": [], "cls": Counter(), "cands": [], "best": None})
-                    tr["frames"].append(idx)
-                    tr["cls"][config.VEHICLE_CLASSES.get(cls, "car")] += 1
-                    x1, y1, x2, y2 = [int(v) for v in box]
-                    x1, y1 = max(0, x1), max(0, y1)
-                    if min(x2 - x1, y2 - y1) < config.MIN_CROP_SIDE:
-                        continue
-                    q = _quality((x1, y1, x2, y2), conf, w, h)
-                    tr["cands"].append((q, idx, frame[y1:y2, x1:x2].copy()))
-                    if len(tr["cands"]) > MAX_CANDIDATES:
-                        worst = min(range(len(tr["cands"])), key=lambda i: tr["cands"][i][0])
-                        tr["cands"].pop(worst)
-                    if tr["best"] is None or q > tr["best"][0]:
-                        tr["best"] = (q, idx, frame.copy(), (x1, y1, x2, y2))
-            if progress:
-                progress(min(idx / total, 1.0))
+        h, w = frame.shape[:2]
+        res = model.track(frame, persist=True, tracker=config.TRACKER_CFG, conf=config.DET_CONF,
+                          classes=list(config.VEHICLE_CLASSES), verbose=False)[0]
+        if res.boxes is not None and res.boxes.id is not None:
+            boxes = res.boxes.xyxy.cpu().numpy()
+            ids = res.boxes.id.int().cpu().tolist()
+            clss = res.boxes.cls.int().cpu().tolist()
+            confs = res.boxes.conf.cpu().tolist()
+            for box, tid, cls, conf in zip(boxes, ids, clss, confs):
+                tr = tracks.setdefault(tid, {"frames": [], "cls": Counter(), "cands": [], "best": None})
+                tr["frames"].append(idx)
+                tr["cls"][config.VEHICLE_CLASSES.get(cls, "car")] += 1
+                x1, y1, x2, y2 = [int(v) for v in box]
+                x1, y1 = max(0, x1), max(0, y1)
+                if min(x2 - x1, y2 - y1) < config.MIN_CROP_SIDE:
+                    continue
+                q = _quality((x1, y1, x2, y2), conf, w, h)
+                tr["cands"].append((q, idx, frame[y1:y2, x1:x2].copy()))
+                if len(tr["cands"]) > MAX_CANDIDATES:
+                    worst = min(range(len(tr["cands"])), key=lambda i: tr["cands"][i][0])
+                    tr["cands"].pop(worst)
+                if tr["best"] is None or q > tr["best"][0]:
+                    tr["best"] = (q, idx, frame.copy(), (x1, y1, x2, y2))
+        if progress:
+            progress(min(idx / total, 1.0))
         idx += 1
     cap.release()
 

@@ -61,6 +61,16 @@ A browser tab opens at http://localhost:8501.
 | **SOM (unsupervised)** | U-matrix of the vehicle embeddings, with crops grouped by map node. |
 | **Evaluation** | Benchmark results produced by `scripts/train_eval.py`. |
 
+**Processing speed.** Tab 1 has three presets. Times are for a 30 s, 720p clip on an 8-core laptop CPU:
+
+| Preset | Frames analysed | Plate OCR | Time |
+|---|---|---|---|
+| Fast | every 5th | off | ~20 s |
+| Balanced (default) | every 3rd | only on vehicles wide enough for a legible plate | ~40 s |
+| Detailed | every 2nd | on | slowest |
+
+On the command line, the equivalent is `python scripts/build_index.py --stride 5 --no-ocr`.
+
 ### Deploy the demo on Streamlit Community Cloud (optional)
 
 The repo is ready for https://share.streamlit.io. It includes `requirements.txt` (CPU-only PyTorch), `packages.txt`
