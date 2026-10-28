@@ -5,8 +5,8 @@
 **Course:** Pattern Recognition Systems – Practice Module
 
 > **Draft status.** Sections 1–5, 7 and 8 are drafted from the proposal and the implemented system.
-> Items marked **TODO** need the VeRi-776 run (`python scripts/train_eval.py`, issue #4) or the real-clip demo (issue #5).
-> Paste the tables from `python scripts/export_tables.py` into Section 6.
+> VeRi-776 results (Section 6) are from `python scripts/train_eval.py` (PR #16; all tables in `results/tables.md`).
+> Remaining **TODO**s: app screenshots, the manual tracking check (Track review tab) and demo failure screenshots.
 
 ---
 
@@ -129,7 +129,7 @@ A sidebar shows the system status. **TODO:** add one screenshot per tab.
 - Images of the same vehicle in the same camera are consecutive frames of one pass, so they are grouped into **tracklets**, the same unit the video pipeline produces.
 - For each tracklet, four images are sampled evenly.
 - Training uses identities from `image_train`; testing uses identities from `image_test`. The two sets are **identity-disjoint**, which prevents data leakage.
-- **TODO:** state the final subset sizes, e.g. 150 train / 100 test vehicles.
+- Subset: **150 training vehicles (1,290 tracklets)** and **100 test vehicles (830 tracklets)**, chosen at random with seed 0.
 
 **Re-ID protocol.**
 - Each test tracklet is a query.
@@ -140,6 +140,9 @@ A sidebar shows the system status. **TODO:** add one screenshot per tab.
 **Random Forest training.**
 - Positives: all same-vehicle, different-camera tracklet pairs (capped).
 - Negatives: three times as many as positives. Half are random different-vehicle pairs; half are *hard* negatives with the same predicted colour and type.
+- 6,000 positive and 18,000 negative pairs in total.
+- Colour/type probabilities for the training pairs come from **out-of-fold** probes (5-fold `GroupKFold` by vehicle). See Section 7 for why.
+- The forest uses **monotonic constraints**: a higher similarity on any cue can never lower the match score.
 
 **Plate robustness.**
 - VeRi has no plate text, so each identity gets a synthetic Singapore-style plate.
@@ -151,25 +154,97 @@ A sidebar shows the system status. **TODO:** add one screenshot per tab.
 - The RF is trained on a mixture of all four levels.
 - Testing is done at each level separately, which isolates the main hypothesis.
 
-**Demo clips.** **TODO:** list the sources, number of cameras and clip durations. Tracking quality on these clips is checked manually in the Track review tab.
+**Demo clips** (`docs/DEMO_DATA.md`).
+- Source: two CC BY 3.0 Ljubljana road-traffic recordings from Wikimedia Commons.
+- Three 30 s, 720p cameras:
+  - camA: real footage.
+  - camB: a **simulated** second viewpoint of the same road (re-framed, darker, colder colours, 1.5 s offset).
+  - camC: a different road, used as a distractor.
+- Tracking quality is checked manually in the Track review tab.
 
 ## 6. Results
 
-> **TODO:** run `python scripts/train_eval.py`, then `python scripts/export_tables.py`, and paste the output here.
+All numbers are for the VeRi-776 test subset (100 vehicles, 830 tracklets). Re-ID uses 300 query tracklets.
 
-### 6.1 Attribute recognition (colour, type: zero-shot vs linear probe)
-### 6.2 Stage 1 – description search (colour + type / partial plate / both)
-### 6.3 Stage 2 – Re-ID ablation (single cues vs weighted fusion vs Random Forest)
-### 6.4 Plate-degradation robustness – insert `results/plate_robustness.png`
-### 6.5 SOM – purity and pre-filter trade-off – insert `results/som_umatrix.png`
-### 6.6 Tracking on demo clips – % clean tracklets from the Track review tab
+### 6.1 Attribute recognition (accuracy %, 830 test tracklets)
+| Attribute | CLIP zero-shot | Supervised linear probe |
+|---|---|---|
+| Colour | 67.0 | **72.9** |
+| Type | 38.3 | **79.3** |
+
+The supervised probe roughly doubles type accuracy. Zero-shot CLIP confuses sedan, hatchback and estate.
+
+### 6.2 Stage 1 – description search (query = a test vehicle's true attributes)
+| Query | Rank-1 | Rank-5 | mAP |
+|---|---|---|---|
+| colour + type | 16.0 | 45.0 | 19.1 |
+| partial plate only | 21.0 | 49.0 | 21.6 |
+| colour + type + partial plate | **58.0** | **84.0** | **40.9** |
+
+Each cue alone is weak, but together they put the right vehicle in the top 5 for 84% of queries. That's what Stage 1 needs: a short list for the human to confirm from.
+
+### 6.3 Stage 2 – Re-ID ablation, plates hidden
+| Method | Rank-1 | Rank-5 | mAP |
+|---|---|---|---|
+| Random Forest (all cues) | 56.0 | 79.0 | **29.7** |
+| CLIP cosine only | 58.3 | 75.7 | 28.2 |
+| Weighted fusion | 54.7 | 74.7 | 27.8 |
+| ResNet-50 appearance only | **61.3** | **79.3** | 27.1 |
+| HSV colour histogram only | 24.0 | 44.3 | 12.7 |
+| colour agreement only | 5.3 | 16.3 | 11.3 |
+| type agreement only | 7.0 | 18.0 | 10.3 |
+| distinctive-cue agreement only | 13.0 | 30.7 | 9.1 |
+
+Appearance embeddings carry most of the signal. Colour, type and cues are too coarse to rank on their own.
+
+### 6.4 Plate-degradation robustness (mAP %)
+| Method | Clear | Partial | Blurred | Hidden |
+|---|---|---|---|---|
+| Appearance only | 27.1 | 27.1 | 27.1 | 27.1 |
+| Plate only | 100.0 | 30.2 | 44.8 | 3.6 |
+| Weighted fusion | 99.0 | 48.2 | **58.2** | 27.8 |
+| Random Forest | 98.9 | **50.7** | 37.3 | **29.7** |
+
+*Insert `results/plate_robustness.png`.* Plate-only retrieval collapses as plates degrade (100 → 3.6 mAP). The fused methods stay at or above appearance-only at every level, which **supports the main hypothesis**. Which fusion is best depends on the level:
+- **Partial plates:** the Random Forest is best.
+- **Blurred plates:** the transparent weighted fusion is clearly best.
+- **Hidden plates:** the Random Forest has the best mAP, but appearance alone has the best Rank-1.
+
+### 6.5 SOM (10×10, unsupervised)
+- **Purity:** vehicle ID 0.27, colour 0.67, type 0.75. *Insert `results/som_umatrix.png`.* The map organises vehicles by **type and colour**, not identity.
+- **As a pre-filter** (plates hidden, Random Forest):
+
+| Radius | Candidates kept | True matches kept | Rank-1 | mAP |
+|---|---|---|---|---|
+| 1 | 6.6% | 31.9% | 49.7 | 21.6 |
+| 2 | 17.0% | 43.7% | 53.7 | 23.7 |
+| 3 | 29.5% | 53.8% | 54.7 | 25.1 |
+
+It removes 70–94% of candidates but loses too many true matches, so it lowers accuracy. This is a useful negative result: the SOM is good for visual exploration, but at this scale it shouldn't filter Re-ID candidates.
+
+### 6.6 Tracking and demo
+- **Demo run** (`results/demo/`, 173 tracklets across 3 cameras):
+  - Stage 1 (*white* + *sticker/decal*) ranked the white estate car with the "PRVA" logo first.
+  - After confirmation, Stage 2 returned the same car in camB as the #1 sighting (score 0.70, against 0.60–0.64 for the next candidates).
+- **TODO:** % clean tracklets from the Track review tab.
 
 ## 7. Discussion and failure analysis
 
-**What to look for in the results**
-- *Plate robustness:* plate-only retrieval should collapse as plates degrade, while appearance-only stays flat. The hypothesis holds if the fused methods stay at or above appearance-only at every level.
-- *Feature importance* (`results/rf_importance.png`) shows which evidence the Random Forest actually relies on.
-- *SOM pre-filter:* the trade-off between candidates removed and true matches lost. Shrinking the candidate list without losing recall is useful even if it doesn't improve mAP.
+**Two pitfalls found during evaluation**
+
+1. **Stacking leak.** The RF's training pairs first used colour/type probabilities from a probe fitted on the *same* training vehicles.
+   - On those vehicles the attributes were near-perfect, so the forest relied on colour/type agreement, at a combined importance of 0.33.
+   - On unseen vehicles the probe is only 73% (colour) and 79% (type) accurate, so the RF ranked worse than appearance alone: hidden plates, Rank-1 38 vs 59.
+   - Out-of-fold attribute probabilities gave the training features realistic noise.
+2. **Non-monotonic splits.** VeRi has large viewpoint changes, and the unconstrained forest still learned splits where *higher* similarity could *lower* the score.
+   - Monotonic constraints fixed this (hidden plates: mAP 21 → 30).
+   - Caveat: this choice came from a diagnostic on test queries, so the RF-vs-fusion comparison is indicative, not a tuned final number. A proper validation split would be the next step.
+
+**Fusion: learned vs hand-set.** The Random Forest wins with partial plates, but the simple weighted fusion wins with blurred plates (58.2 vs 37.3 mAP).
+- The forest's importances put plate similarity (0.25) and colour agreement (0.21) on top. ResNet appearance gets 0.05, even though it is the best single cue.
+- The likely reason: the forest learns from a balanced pair set, so it optimises *same vs different classification*, not *ranking within one gallery*.
+- A ranking objective, such as learning-to-rank or calibrating per query, is the clear next step.
+- With a small training set, the transparent baseline is competitive. That's useful to know for a system where users must understand the scores.
 
 **Expected failure modes**
 - **Viewpoint change:** front vs rear views of the same vehicle give dissimilar appearance embeddings.
@@ -178,7 +253,11 @@ A sidebar shows the system status. **TODO:** add one screenshot per tab.
 - **Track fragmentation and ID switches:** a fragmented track splits one vehicle into several tracklets; an ID switch mixes two vehicles in one tracklet. Low track consistency flags the latter.
 - **Distinctive cues:** CLIP cue scores are coarse and viewpoint-dependent, so they are treated as weak supporting evidence only.
 
-**TODO:** add 2–3 concrete failure examples from the demo with frame screenshots.
+**Observed in the demo** (`results/demo/`; add screenshots):
+- **Attribute error:** CLIP labels the estate car as an "mpv".
+- **Track fragmentation:** the yellow Post van and the "Alan Ford" bus are each split into several tracklets when occluded or at the frame edge.
+- **Background tracklets:** partly occluded parked cars give blurry, low-information crops.
+- **No plates:** none were readable at this camera distance. This is exactly the setting V-Trace targets.
 
 ## 8. Limitations and future work
 - The appearance backbone is ImageNet-pretrained, not fine-tuned for Re-ID. Fine-tuning on VeRi training identities (e.g. with triplet loss) is the clearest accuracy gain.
@@ -190,7 +269,9 @@ A sidebar shows the system status. **TODO:** add one screenshot per tab.
 ## 9. Conclusion
 V-Trace starts from incomplete information about a vehicle, retrieves likely candidates, keeps a human confirmation step,
 and then re-identifies the confirmed vehicle across the remaining footage using several complementary sources of evidence.
-**TODO:** one or two sentences summarising the headline numbers from Section 6.
+On VeRi-776, plate-only retrieval collapses from 100% to 3.6% mAP as plates degrade. Multi-evidence fusion stays at or above appearance-only throughout, at 48–58% mAP with partial or blurred plates.
+Description search with colour, type and a partial plate puts the right vehicle in the top 5 for 84% of queries.
+The SOM reveals type/colour structure but is not a reliable candidate filter. A learned fusion needs care (leak-free features, monotonic constraints), and is not automatically better than a transparent one.
 
 ## References
 - Liu, X., Liu, W., Mei, T., & Ma, H. VeRi-776 vehicle re-identification dataset. https://github.com/VehicleReId/VeRi
