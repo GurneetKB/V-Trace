@@ -1,9 +1,9 @@
 """VeRi-776 benchmark loader.
 
 Expected layout (as distributed by the dataset authors):
-    data/VeRi/image_train/0001_c001_00016450_0.jpg ...
-    data/VeRi/image_test/...
-    data/VeRi/train_label.xml, data/VeRi/test_label.xml   (colour / type labels)
+    <VeRi dir>/image_train/0001_c001_00016450_0.jpg ...   (VeRi dir: see config.VERI_DIR)
+    <VeRi dir>/image_test/...
+    <VeRi dir>/train_label.xml, <VeRi dir>/test_label.xml   (colour / type labels)
 
 Images of the same vehicle seen by the same camera are consecutive frames of one pass,
 so we group them by (vehicle, camera) into tracklets - exactly the unit the video pipeline uses.
