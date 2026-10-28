@@ -44,9 +44,15 @@ def weighted_fusion(f):
     return sum(w[k] * f[k] for k in w) / sum(w.values())
 
 
+# +1: more similar on this cue must never lower the match score. Without these constraints the forest learned
+# non-monotonic splits on VeRi (large viewpoint changes) and ranked worse than appearance alone.
+MONOTONIC = {"app_cos": 1, "clip_cos": 1, "color_hist": 1, "color_agree": 1, "type_agree": 1, "plate_sim": 1,
+             "plate_avail": 0, "cue_sim": 1, "track_quality": 0, "track_consist": 0}
+
+
 def train_rf(X, y, seed=0):
-    rf = RandomForestClassifier(n_estimators=300, min_samples_leaf=2, class_weight="balanced",
-                                n_jobs=-1, random_state=seed)
+    rf = RandomForestClassifier(n_estimators=300, min_samples_leaf=2, class_weight="balanced", n_jobs=-1,
+                                random_state=seed, monotonic_cst=[MONOTONIC[k] for k in config.PAIR_FEATURES])
     return rf.fit(X, y)
 
 

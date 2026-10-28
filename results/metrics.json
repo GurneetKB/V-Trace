@@ -1,0 +1,332 @@
+{
+  "setup": {
+    "train_ids": 150,
+    "test_ids": 100,
+    "max_queries": 300,
+    "max_pos": 6000,
+    "neg_ratio": 3,
+    "seed": 0,
+    "n_train_tracklets": 1290,
+    "n_test_tracklets": 830
+  },
+  "attributes": {
+    "color": {
+      "zero_shot_acc": 66.98795180722892,
+      "linear_probe_acc": 72.89156626506023,
+      "n_test": 830
+    },
+    "type": {
+      "zero_shot_acc": 38.31325301204819,
+      "linear_probe_acc": 79.27710843373494,
+      "n_test": 830
+    }
+  },
+  "rf_feature_importance": {
+    "app_cos": 0.04798202265146746,
+    "clip_cos": 0.10432002703959793,
+    "color_hist": 0.04975270808281568,
+    "color_agree": 0.21101461587111173,
+    "type_agree": 0.1128742027451956,
+    "plate_sim": 0.24842283615771357,
+    "plate_avail": 0.06268434096217793,
+    "cue_sim": 0.02601413880523698,
+    "track_quality": 0.014054661324442063,
+    "track_consist": 0.12288044636024095
+  },
+  "description_search": {
+    "colour + type": {
+      "rank1": 16.0,
+      "rank5": 45.0,
+      "mAP": 19.14
+    },
+    "partial plate only": {
+      "rank1": 21.0,
+      "rank5": 49.0,
+      "mAP": 21.65
+    },
+    "colour + type + partial plate": {
+      "rank1": 58.0,
+      "rank5": 84.0,
+      "mAP": 40.92
+    }
+  },
+  "reid": {
+    "clear": {
+      "type_agree": {
+        "rank1": 7.0,
+        "rank5": 18.0,
+        "mAP": 10.31
+      },
+      "appearance only": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "plate_sim": {
+        "rank1": 100.0,
+        "rank5": 100.0,
+        "mAP": 100.0
+      },
+      "random forest": {
+        "rank1": 100.0,
+        "rank5": 100.0,
+        "mAP": 98.89
+      },
+      "track_quality": {
+        "rank1": 0.67,
+        "rank5": 1.67,
+        "mAP": 3.39
+      },
+      "clip_cos": {
+        "rank1": 58.33,
+        "rank5": 75.67,
+        "mAP": 28.16
+      },
+      "color_hist": {
+        "rank1": 24.0,
+        "rank5": 44.33,
+        "mAP": 12.68
+      },
+      "color_agree": {
+        "rank1": 5.33,
+        "rank5": 16.33,
+        "mAP": 11.28
+      },
+      "weighted fusion": {
+        "rank1": 100.0,
+        "rank5": 100.0,
+        "mAP": 98.97
+      },
+      "track_consist": {
+        "rank1": 0.67,
+        "rank5": 5.33,
+        "mAP": 3.47
+      },
+      "app_cos": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "cue_sim": {
+        "rank1": 13.0,
+        "rank5": 30.67,
+        "mAP": 9.06
+      }
+    },
+    "partial": {
+      "type_agree": {
+        "rank1": 7.0,
+        "rank5": 18.0,
+        "mAP": 10.31
+      },
+      "appearance only": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "plate_sim": {
+        "rank1": 15.67,
+        "rank5": 27.0,
+        "mAP": 30.16
+      },
+      "random forest": {
+        "rank1": 76.0,
+        "rank5": 91.67,
+        "mAP": 50.67
+      },
+      "track_quality": {
+        "rank1": 0.67,
+        "rank5": 1.67,
+        "mAP": 3.39
+      },
+      "clip_cos": {
+        "rank1": 58.33,
+        "rank5": 75.67,
+        "mAP": 28.16
+      },
+      "color_hist": {
+        "rank1": 24.0,
+        "rank5": 44.33,
+        "mAP": 12.68
+      },
+      "color_agree": {
+        "rank1": 5.33,
+        "rank5": 16.33,
+        "mAP": 11.28
+      },
+      "weighted fusion": {
+        "rank1": 74.67,
+        "rank5": 91.67,
+        "mAP": 48.19
+      },
+      "track_consist": {
+        "rank1": 0.67,
+        "rank5": 5.33,
+        "mAP": 3.47
+      },
+      "app_cos": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "cue_sim": {
+        "rank1": 13.0,
+        "rank5": 30.67,
+        "mAP": 9.06
+      }
+    },
+    "blurred": {
+      "type_agree": {
+        "rank1": 7.0,
+        "rank5": 18.0,
+        "mAP": 10.31
+      },
+      "appearance only": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "plate_sim": {
+        "rank1": 77.33,
+        "rank5": 90.67,
+        "mAP": 44.75
+      },
+      "random forest": {
+        "rank1": 65.33,
+        "rank5": 84.67,
+        "mAP": 37.26
+      },
+      "track_quality": {
+        "rank1": 0.67,
+        "rank5": 1.67,
+        "mAP": 3.39
+      },
+      "clip_cos": {
+        "rank1": 58.33,
+        "rank5": 75.67,
+        "mAP": 28.16
+      },
+      "color_hist": {
+        "rank1": 24.0,
+        "rank5": 44.33,
+        "mAP": 12.68
+      },
+      "color_agree": {
+        "rank1": 5.33,
+        "rank5": 16.33,
+        "mAP": 11.28
+      },
+      "weighted fusion": {
+        "rank1": 87.67,
+        "rank5": 96.67,
+        "mAP": 58.22
+      },
+      "track_consist": {
+        "rank1": 0.67,
+        "rank5": 5.33,
+        "mAP": 3.47
+      },
+      "app_cos": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "cue_sim": {
+        "rank1": 13.0,
+        "rank5": 30.67,
+        "mAP": 9.06
+      }
+    },
+    "hidden": {
+      "type_agree": {
+        "rank1": 7.0,
+        "rank5": 18.0,
+        "mAP": 10.31
+      },
+      "appearance only": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "plate_sim": {
+        "rank1": 1.0,
+        "rank5": 1.0,
+        "mAP": 3.6
+      },
+      "random forest": {
+        "rank1": 56.0,
+        "rank5": 79.0,
+        "mAP": 29.67
+      },
+      "track_quality": {
+        "rank1": 0.67,
+        "rank5": 1.67,
+        "mAP": 3.39
+      },
+      "clip_cos": {
+        "rank1": 58.33,
+        "rank5": 75.67,
+        "mAP": 28.16
+      },
+      "color_hist": {
+        "rank1": 24.0,
+        "rank5": 44.33,
+        "mAP": 12.68
+      },
+      "color_agree": {
+        "rank1": 5.33,
+        "rank5": 16.33,
+        "mAP": 11.28
+      },
+      "weighted fusion": {
+        "rank1": 54.67,
+        "rank5": 74.67,
+        "mAP": 27.8
+      },
+      "track_consist": {
+        "rank1": 0.67,
+        "rank5": 5.33,
+        "mAP": 3.47
+      },
+      "app_cos": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "cue_sim": {
+        "rank1": 13.0,
+        "rank5": 30.67,
+        "mAP": 9.06
+      }
+    }
+  },
+  "som": {
+    "grid": 10,
+    "purity_vehicle_id": 0.2746987951807229,
+    "purity_color": 0.6698795180722892,
+    "purity_type": 0.7481927710843373,
+    "prefilter": {
+      "radius_1": {
+        "candidates_kept_%": 6.5710845792359525,
+        "true_match_recall_%": 31.924896644749584,
+        "rank1": 49.67,
+        "rank5": 68.33,
+        "mAP": 21.55
+      },
+      "radius_2": {
+        "candidates_kept_%": 16.968333114350447,
+        "true_match_recall_%": 43.71735669015081,
+        "rank1": 53.67,
+        "rank5": 74.67,
+        "mAP": 23.74
+      },
+      "radius_3": {
+        "candidates_kept_%": 29.542728680728448,
+        "true_match_recall_%": 53.80765927971811,
+        "rank1": 54.67,
+        "rank5": 75.67,
+        "mAP": 25.13
+      }
+    }
+  }
+}

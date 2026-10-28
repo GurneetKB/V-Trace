@@ -106,12 +106,37 @@ def attribute_experiment(train, test, results):
         print(f"{key}: zero-shot {out[key]['zero_shot_acc']:.1f}%  probe {out[key]['linear_probe_acc']:.1f}%")
     if len(probe) == 2:
         joblib.dump(probe, config.ATTR_PROBE_PATH)
-        for t in train + test:  # from now on use the supervised attribute probabilities
+        for t in test:  # from now on use the supervised attribute probabilities
             for key, n in (("color", len(config.COLORS)), ("type", len(config.TYPES))):
                 p = np.zeros(n)
                 p[probe[key].classes_] = probe[key].predict_proba(t["clip_emb"][None])[0]
                 t[f"{key}_probs"] = p
+        out_of_fold_attributes(train)
     results["attributes"] = out
+
+
+def out_of_fold_attributes(train, folds=5):
+    """Attribute probabilities for TRAIN tracklets from probes that never saw that vehicle.
+
+    The Random Forest is trained on train pairs. If their colour/type probabilities came from a probe fitted on
+    those same vehicles they would be near-perfect, the RF would over-trust them, and it would rank badly on
+    unseen vehicles (a stacking leak). Out-of-fold predictions, grouped by vehicle identity, give the training
+    features the same noise level as at test time.
+    """
+    from sklearn.model_selection import GroupKFold
+    X = np.stack([t["clip_emb"] for t in train])
+    groups = np.array([t["vehicle_id"] for t in train])
+    for key, label, n in (("color", "color_label", len(config.COLORS)), ("type", "type_label", len(config.TYPES))):
+        y = np.array([-1 if t[label] is None else t[label] for t in train])
+        probs = np.zeros((len(train), n))
+        for fit_idx, pred_idx in GroupKFold(n_splits=folds).split(X, y, groups):
+            fit_idx = fit_idx[y[fit_idx] >= 0]
+            clf = LogisticRegression(max_iter=3000, C=2.0).fit(X[fit_idx], y[fit_idx])
+            probs[np.ix_(pred_idx, clf.classes_)] = clf.predict_proba(X[pred_idx])
+        for t, p in zip(train, probs):
+            t[f"{key}_probs"] = p
+        lab = y >= 0
+        print(f"{key}: out-of-fold train accuracy {100 * (probs[lab].argmax(1) == y[lab]).mean():.1f}% (used for RF pairs)")
 
 
 def build_training_pairs(train, neg_ratio, max_pos, rng):
