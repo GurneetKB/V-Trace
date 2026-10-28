@@ -6,7 +6,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 VIDEO_DIR = DATA_DIR / "videos"          # uploaded / demo videos (one file = one camera)
 INDEX_DIR = DATA_DIR / "index"           # generated vehicle index (crops, frames, index.pkl)
-VERI_DIR = DATA_DIR / "VeRi"             # VeRi-776 benchmark (download separately)
+# VeRi-776 benchmark (download separately, ~1 GB). Set VTRACE_VERI_DIR to keep it outside the project
+# (e.g. outside OneDrive); otherwise data/VeRi is used, falling back to ~/VeRi.
+VERI_DIR = Path(os.environ["VTRACE_VERI_DIR"]) if os.environ.get("VTRACE_VERI_DIR") else (
+    DATA_DIR / "VeRi" if (DATA_DIR / "VeRi").exists() else Path.home() / "VeRi")
 CACHE_DIR = DATA_DIR / "cache"           # cached benchmark features
 MODELS_DIR = ROOT / "models"             # trained Random Forest + attribute probes
 RESULTS_DIR = ROOT / "results"           # evaluation metrics and plots

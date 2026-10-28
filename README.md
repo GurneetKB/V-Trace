@@ -113,7 +113,13 @@ package, reinstall an older, widely used version of that package.
 ## 3. Benchmark data (VeRi-776) and training
 
 1. Request VeRi-776 from https://github.com/VehicleReId/VeRi (a mirror is also on Kaggle).
-2. Unzip it so you get `data/VeRi/image_train/`, `data/VeRi/image_test/`, `data/VeRi/train_label.xml` and `data/VeRi/test_label.xml`.
+2. Unzip it so you get `image_train/`, `image_test/`, `train_label.xml` and `test_label.xml` inside one folder.
+   V-Trace looks for that folder in this order:
+   - the `VTRACE_VERI_DIR` environment variable;
+   - `data/VeRi/`;
+   - `C:\Users\<you>\VeRi`.
+
+   Keeping it outside the project avoids syncing ~1–2 GB if the project is in OneDrive.
 3. Run (or use the **"V-Trace: train + evaluate on VeRi-776"** launch config):
 
 ```bash
