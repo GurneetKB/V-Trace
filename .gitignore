@@ -8,3 +8,4 @@ data/VeRi/
 models/*.joblib
 .claude/
 .pytest_cache/
+.streamlit/secrets.toml

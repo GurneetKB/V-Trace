@@ -5,5 +5,41 @@ headless = true
 [browser]
 gatherUsageStats = false
 
+# V-Trace palette (from the proposal deck): teal #12A7A1, navy #111820, slate #34454D, pale teal #EAF7F6.
+# Both themes are defined so the viewer can switch in  ⋮ → Settings → Theme; app.py makes Dark the default.
 [theme]
-primaryColor = "#e63946"
+primaryColor = "#12A7A1"
+font = "sans-serif"
+baseRadius = "medium"
+
+[theme.dark]
+primaryColor = "#12A7A1"
+backgroundColor = "#111820"
+secondaryBackgroundColor = "#1B2830"
+textColor = "#E6EEF0"
+linkColor = "#3CC8C1"
+borderColor = "#34454D"
+codeBackgroundColor = "#1B2830"
+greenColor = "#65C95A"
+
+[theme.dark.sidebar]
+backgroundColor = "#15324B"
+secondaryBackgroundColor = "#1E3F5C"
+textColor = "#E6EEF0"
+borderColor = "#34454D"
+
+[theme.light]
+primaryColor = "#12A7A1"
+backgroundColor = "#F4F7F8"
+secondaryBackgroundColor = "#EAF7F6"
+textColor = "#111820"
+linkColor = "#0E8782"
+borderColor = "#D3DEE2"
+codeBackgroundColor = "#EEF4F5"
+greenColor = "#3E9E35"
+
+[theme.light.sidebar]
+backgroundColor = "#EAF7F6"
+secondaryBackgroundColor = "#D3DEE2"
+textColor = "#111820"
+borderColor = "#AAB5BA"
