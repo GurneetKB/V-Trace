@@ -241,11 +241,11 @@ text(s, 2.2, 6.45, 10.5, 0.4, "V-Trace ranks potential matches for human review 
 # ================================================================== 3 how the user uses it
 s = content_slide("How the User Uses V-Trace",
                   "The user starts with what they know — and confirms each step, from the first match to the full route.",
-    "This is the workflow, as in the proposal, now with a sixth step. Upload the camera videos, or use the one-click "
-    "demo. Describe the vehicle with whatever is known. Stage one ranks every tracked vehicle. The user confirms the "
+    "This is the workflow, as in the proposal, now with a sixth step. Upload the camera videos; the demo cameras are "
+    "preloaded. Describe the vehicle with whatever is known. Stage one ranks every tracked vehicle. The user confirms the "
     "right candidate, which becomes the visual query. Stage two re-identifies it in the other cameras. And the new "
     "trace step suggests the route and lets the user confirm the sighting in each camera with one click.")
-steps = [("1  UPLOAD", "Camera A.mp4\nCamera B.mp4\nCamera C.mp4\n(or Quick demo)", MINT, INK),
+steps = [("1  UPLOAD", "Camera A.mp4\nCamera B.mp4\nCamera C.mp4\n(demo cameras preloaded)", MINT, INK),
          ("2  DESCRIBE", "Red sedan\nPlate: SGX12??\nRoof rack", LAV, INK),
          ("3  SEARCH", "#1  camA · 0:41\n#2  camA · 0:01\n#3  camC · 0:03", BLUE, INK),
          ("4  CONFIRM", "User selects the most plausible candidate", LGREEN, GREEN_D),
@@ -289,7 +289,7 @@ for i, (h, d, fill) in enumerate(pipe):
         chevron(s, x + 1.63, 3.45, 0.18, 0.4)
 text(s, 0.45, 6.05, 12.4, 0.6, "Tracklet = observations of one tracked vehicle while it is visible in one video",
      14, INK, bold=True, align=PP_ALIGN.CENTER)
-text(s, 0.45, 6.45, 12.4, 0.4, "Streamlit app: sign-in · upload · search · re-identify · route · track review · SOM · evaluation",
+text(s, 0.45, 6.45, 12.4, 0.4, "Streamlit app: Search page (find → route → where else) · Analysis page (benchmark · SOM · tracking check)",
      12, MUTED, align=PP_ALIGN.CENTER)
 
 # ================================================================== 5 descriptors
@@ -539,13 +539,14 @@ for i, (h, prob, fix, gain, fill, nc) in enumerate(pit):
 
 # ================================================================== 15 demo
 s = content_slide("Live Demo",
-                  "Describe → search → confirm → re-identify → trace, in the Streamlit app.",
-    "Now the app. After the admin signs in, the quick demo loads the four cameras. I describe the target as a red "
-    "sedan; the red Citroën in camera A is ranked first and I confirm it. In step three the route view already "
-    "suggests camera B; I confirm it, camera C is re-scored against both views, and I confirm the sighting there — "
-    "giving the full route from camera A to B to C in time order, with the evidence for every step.")
-for i, (f, cap) in enumerate((("search.png", "Stage 1 · “red + sedan” → ranked candidates → confirm"),
-                              ("path.png", "Stage 2 · route confirmed camA → camB → camC"))):
+                  "One page: find the vehicle → see where else it was seen → follow its route.",
+    "Now the app. It has one search page. After the admin signs in, the four demo cameras are already loaded. Step "
+    "one: I describe the target as a red sedan; the red Citroën in camera A is ranked first and I select it. Step "
+    "three shows the best three matches in every other camera, like a re-identification result list; the starred "
+    "match in camera B is the same car, so I confirm it, camera C is re-ranked against both views, and I confirm the "
+    "sighting there. Step two now shows the full route from camera A to B to C in time order.")
+for i, (f, cap) in enumerate((("search.png", "① Find: “red + sedan” → ranked vehicles → Select"),
+                              ("path.png", "② Route confirmed camA → camB → camC"))):
     x = 0.6 + i * 6.2
     box(s, x, 1.7, 5.95, 4.45, GREY)
     fit_picture(s, SHOTS / f, x + 0.15, 1.85, 5.65, 4.15)
