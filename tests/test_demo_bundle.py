@@ -1,4 +1,4 @@
-"""On a fresh deployment (no demo videos, empty index) the Quick demo must load the pre-processed demo bundle."""
+"""On a fresh deployment (no demo videos, empty index) the app must load the pre-processed demo bundle."""
 from pathlib import Path
 
 import pytest
@@ -12,7 +12,7 @@ APP = str(Path(__file__).resolve().parent.parent / "app.py")
 pytestmark = pytest.mark.skipif(not (config.DEMO_BUNDLE / "manifest.json").exists(), reason="no demo bundle")
 
 
-def test_quick_demo_loads_bundle_without_videos(tmp_path, monkeypatch):
+def test_demo_cameras_load_from_bundle_without_videos(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "VIDEO_DIR", tmp_path / "videos")
     (tmp_path / "videos").mkdir()
     monkeypatch.setattr(index_mod, "INDEX_FILE", tmp_path / "index.pkl")
@@ -26,9 +26,6 @@ def test_quick_demo_loads_bundle_without_videos(tmp_path, monkeypatch):
     at.text_input[1].input("pw")
     at.button[0].click()
     at.run()
-    demo = next(b for b in at.button if "Quick demo" in b.label)
-    demo.click()
-    at.run()
     assert not at.exception
     assert sorted(at.session_state["active"]) == ["camA_west", "camB_centre", "camC_east", "camD_other_road"]
-    assert at.sidebar.metric[0].value == "187"
+    assert len(at.session_state["view"]) == 187

@@ -22,24 +22,28 @@ def sign_in(at, user, pwd):
     return at.run()
 
 
+def signed_in(at):
+    return "admin_user" in at.session_state
+
+
 def test_locked_until_signed_in():
     at = make_app()
     assert not at.exception
     assert [t.label for t in at.text_input] == ["Username", "Password"]
-    assert len(at.tabs) == 0
+    assert not signed_in(at)
 
 
 def test_wrong_password_rejected():
     at = sign_in(make_app(), "admin", "nope")
     assert "Incorrect username or password." in [e.value for e in at.error]
-    assert len(at.tabs) == 0
+    assert not signed_in(at)
     assert "admin_user" not in at.session_state
 
 
 def test_right_password_opens_app_and_sign_out_locks_it():
     at = sign_in(make_app(), "admin", "test-pass")
     assert not at.exception
-    assert len(at.tabs) == 6
-    at.sidebar.button[0].click()            # Sign out
+    assert signed_in(at)
+    next(b for b in at.sidebar.button if b.label == "Sign out").click()
     at.run()
-    assert len(at.tabs) == 0
+    assert not signed_in(at)

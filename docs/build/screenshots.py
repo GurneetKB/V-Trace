@@ -26,8 +26,8 @@ OUT = ROOT / "docs" / "screenshots"
 EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 ADMIN = tomllib.loads((ROOT / ".streamlit" / "secrets.toml").read_text())["admin"]
 # Demo scenario (docs/DEMO_GUIDE.md): the red Citroen first seen in camA (track 481), then confirmed in camB and camC.
-QUERY, HOPS = "camA_west#481", ["camB_centre#156", "camC_east#294"]
-DEMO = {"colour": "red", "type": "sedan", "query": QUERY}
+QUERY_TIME, HOP_TIMES = "00:40.80", ["00:42.00", "00:43.56"]          # camA #481 -> camB #156 -> camC #294
+DEMO = {"colour": "red", "type": "sedan"}
 PORT = 9350
 
 
@@ -74,6 +74,7 @@ class Page:
         if not r:
             html = await self.js("(() => { const l = [...document.querySelectorAll('label')].find(e => e.innerText.includes('Colour'));"
                                  " return l ? l.closest('[data-testid]').outerHTML.slice(0, 1500) : 'no label'; })()")
+            await self.shot("_debug_failed_click.png")
             raise LookupError(f"{selector_js}\n--- DOM near 'Colour':\n{html}")
         await asyncio.sleep(0.4)
         await self.click_xy(*r)
@@ -92,13 +93,10 @@ class Page:
         print("saved", OUT / name)
 
 
-def button_in_column(label, uid):
-    """The button labelled `label` in the column/card that shows tracklet `uid` ('<video>#<track>')."""
-    video, tid = uid.split("#")
+def button_in_column(label, text):
+    """The button labelled `label` in the column that also shows `text` (e.g. a vehicle's start time)."""
     return (f"[...document.querySelectorAll('button')].find(b => b.innerText.includes({json.dumps(label)}) && "
-            f"(c => c && c.innerText.includes('track {tid} ') && "
-            f"(c.innerText.includes('{video}') || !{json.dumps(label == 'Confirm this vehicle')}))"
-            f"(b.closest('[data-testid=stColumn]')))")
+            f"(c => c && c.innerText.includes({json.dumps(text)}))(b.closest('[data-testid=stColumn]')))")
 
 
 def by_text(tag, text):
@@ -122,46 +120,45 @@ async def run(ws_url):
             await p.cmd("Page.reload")
         await p.wait_text("Sign in")
         await p.shot("login.png")
-        await p.js("document.querySelector('input[aria-label=\"Username\"]').focus()")
-        await p.type(ADMIN["username"])
-        await p.js("document.querySelector('input[aria-label=\"Password\"]').focus()")
-        await p.type(ADMIN["password"])
-        await p.click(by_text("button", "Sign in"))
-        await p.wait_text("Step 1")
+        for attempt in range(3):                                  # the first-visit theme reload can wipe the form
+            await p.js("document.querySelector('input[aria-label=\"Username\"]').focus()")
+            await p.type(ADMIN["username"])
+            await p.js("document.querySelector('input[aria-label=\"Password\"]').focus()")
+            await p.type(ADMIN["password"])
+            await p.click(by_text("button", "Sign in"))
+            try:
+                await p.wait_text("Find the vehicle", 25)         # the demo cameras load automatically
+                break
+            except TimeoutError:
+                await p.cmd("Page.reload")
+                await p.wait_text("Sign in")
 
-        await p.click(by_text("button", "Quick demo"))
-        await p.wait_text("go to step 2", 900)
-        await p.shot("upload.png")
-
-        await p.click(by_text("[role=tab]", "Describe"))
+        # 1 find the vehicle: describe it
         await p.click("document.querySelector('input[aria-label^=\"Colour\"]')")
         await p.click(by_text("[role=option]", DEMO["colour"]))
-        if DEMO["type"] != "-":
-            await p.click("document.querySelector('input[aria-label^=\"Vehicle type\"]')")
-            await p.click(by_text("[role=option]", DEMO["type"]))
+        await p.click("document.querySelector('input[aria-label^=\"Type\"]')")
+        await p.click(by_text("[role=option]", DEMO["type"]))
         await p.click(by_text("button", "Search"))
-        await p.wait_text("score")
-        await p.shot("search.png", scroll_to=by_text("h3", "Step 2"))
+        await p.wait_text("#1 ·")
+        await p.shot("search.png")
+        await p.click(button_in_column("Select", QUERY_TIME))
 
-        await p.click(button_in_column("Confirm this vehicle", QUERY))
-        await p.click(by_text("[role=tab]", "re-identify"))
-        await p.wait_text("Trace this vehicle")
-        await p.shot("path_suggested.png", scroll_to=by_text("h3", "Trace this vehicle"))
-        for hop in HOPS:                                          # the human confirms each camera's sighting
-            await p.click(button_in_column("Same vehicle", hop))
-            await asyncio.sleep(2)
-            await p.click(by_text("[role=tab]", "re-identify"))   # a rerun may switch back to the first tab
-            await asyncio.sleep(1)
-        await p.wait_text("Confirmed route")
-        await p.shot("path.png", scroll_to=by_text("h3", "Trace this vehicle"))
-        await p.shot("reid_candidates.png", scroll_to=by_text("h3", "All ranked candidates"))
+        # 2/3 route + where else, confirming each camera
+        await p.wait_text("Where else was it seen")
+        await p.shot("path_suggested.png")
+        for t in HOP_TIMES:
+            await p.click(button_in_column("Same vehicle", t))
+            await p.wait_text(f"confirmed at {t}")              # wait for the page to update before the next click
+        await p.shot("path.png", scroll_to=by_text("h3", "route across"))
+        await p.shot("reid_candidates.png", scroll_to=by_text("h3", "Where else"))
 
-        await p.click(by_text("[role=tab]", "SOM"))
-        await p.wait_text("Self-Organizing Map")
-        await p.shot("som.png")
-        await p.click(by_text("[role=tab]", "Evaluation"))
-        await p.wait_text("Benchmark evaluation")
+        # analysis page
+        await p.click("[...document.querySelectorAll('a')].find(a => a.innerText.includes('Analysis'))")
+        await p.wait_text("Benchmark results")
         await p.shot("evaluation.png")
+        await p.click(by_text("[role=tab]", "Vehicle map"))
+        await asyncio.sleep(3)
+        await p.shot("som.png")
 
 
 def main():

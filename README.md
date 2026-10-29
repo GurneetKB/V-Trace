@@ -65,22 +65,16 @@ With no account configured, the app stays locked and says how to set one up. **S
 **Theme.** The app uses the V-Trace logo, the Inter font and the teal/navy palette from the presentation deck, and opens in **dark mode**.
 To switch to light (or back), use the **⋮** menu (top right) → **Settings** → **Theme**. The browser remembers the choice.
 
-| Tab | What it does |
+The four demo cameras load automatically. The app has two pages:
+
+| Page | What it does |
 |---|---|
-| **1 · Upload videos** | Upload or select the camera videos for this session and click **Process videos**. Only these videos are searched in steps 2–3. A video already processed with the same speed setting loads instantly from the cache in `data/index/`. |
-| **2 · Describe & search** | **Stage 1.** Enter colour, type, partial plate (`?` = unknown character), cues and free text. You get ranked candidate tracklets with the evidence for each field. Click **Confirm** on one. |
-| **3 · Confirm & re-identify** | **Stage 2.** The confirmed tracklet becomes the visual query. Ranked sightings from the other videos, with the method (appearance only / weighted fusion / Random Forest), an optional SOM pre-filter, timestamps, the pairwise evidence and the frame. |
-| **Track review** | Tick the clean tracklets (no ID switch) to get a manually checked tracking accuracy for the demo clips. |
-| **SOM (unsupervised)** | U-matrix of the vehicle embeddings, with crops grouped by map node. |
-| **Evaluation** | Benchmark results produced by `scripts/train_eval.py`. |
+| **Search** | **① Find the vehicle**: describe it (colour, type, partial plate with `?` wildcards, optional cues/free text) or pick it from a camera, then **Select**. **② Its route across the cameras**: timeline of its sightings (⭐ suggested, ✅ confirmed). **③ Where else was it seen?**: the top 3 ranked matches in every other camera; click **✓ Same vehicle** on the right one and the rest re-rank. *Why these matches?* shows the evidence. |
+| **Analysis** | VeRi-776 benchmark results, the SOM vehicle map and a manual tracking check. |
 
-**Processing speed.** Tab 1 has three presets. Times are for a 30 s, 720p clip on an 8-core laptop CPU:
-
-| Preset | Frames analysed | Plate OCR | Time |
-|---|---|---|---|
-| Fast | every 5th | off | ~20 s |
-| Balanced (default) | every 3rd | only on vehicles wide enough for a legible plate | ~40 s |
-| Detailed | every 2nd | on | slowest |
+The sidebar lists the cameras being searched and has **Use your own videos** (upload + process; *Fast processing*
+analyses every 5th frame without plate OCR, otherwise every 3rd frame with OCR; videos already processed load
+instantly), **Matching settings** (matcher, time window, suggestion threshold) and **Sign out**.
 
 On the command line, the equivalent is `python scripts/build_index.py --stride 5 --no-ocr`.
 
@@ -90,7 +84,7 @@ The repo is ready for https://share.streamlit.io. It includes `requirements.txt`
 (the system libraries OpenCV needs) and `.streamlit/config.toml`.
 
 1. Push the repo to GitHub. The trained models (`models/`) and the pre-processed demo cameras (`demo_bundle/`) are
-   committed, so the hosted **▶ Quick demo** loads instantly without processing any video.
+   committed, so the hosted app shows the four demo cameras instantly without processing any video.
 2. On share.streamlit.io, sign in **with the GitHub account that owns the repo**, click **Create app** →
    *Deploy a public app from GitHub*, and pick the repo `GurneetKB/V-Trace`, branch `main`, main file `app.py`.
    The repo is private, so Streamlit asks once for permission to read private repositories; accept it, or the repo
@@ -105,8 +99,8 @@ Community Cloud runs on a small CPU, so keep uploaded clips short (10–30 s) an
 from `localhost` is the most reliable option for a live demo. After re-processing the demo cameras locally, refresh the
 bundle with `python scripts/export_demo_bundle.py`.
 
-**Quick smoke test without real footage:** in tab 1, click **"Generate two sample camera clips"**, or run `python scripts/make_sample_videos.py`, then process
-`sample_camA.mp4` and `sample_camB.mp4` in tab 1.
+**Quick smoke test without real footage:** run `python scripts/make_sample_videos.py` and upload
+`data/videos/sample_camA.mp4` and `sample_camB.mp4` under **Use your own videos**.
 
 **Real-footage demo (multi-camera path tracing):** follow [docs/DEMO_DATA.md](docs/DEMO_DATA.md) to download two
 CC-BY Ljubljana traffic clips, then build the four demo cameras (three along one street, so the same cars pass
@@ -116,7 +110,7 @@ A → B → C, plus a distractor road):
 .venv\Scripts\python scripts/prepare_demo_clips.py
 ```
 
-In the app, tab 1 → **▶ Quick demo** processes them (or run `scripts/build_index.py` on the four `cam*.mp4` files).
+The app loads them automatically (process them first with `scripts/build_index.py` on the four `cam*.mp4` files, or it uses the pre-processed `demo_bundle/`).
 Step-by-step demo scenarios, with expected results, are in [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md). To measure
 tracking, Re-ID and path tracing on these cameras:
 

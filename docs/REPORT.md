@@ -134,15 +134,22 @@ heuristic). No identity labels are used. The SOM is used to (a) visualise groups
 (b) optionally pre-filter Re-ID candidates to map nodes near the query's best-matching unit.
 
 ### 3.7 Streamlit application (`app.py`)
-- **Admin sign-in**: username and password from Streamlit secrets or environment variables; constant-time comparison; the app stays locked if no account is configured.
-- **Theme**: the proposal deck's teal/navy palette in dark (default) and light modes.
-- **Tabs**: 1 Upload & process videos (with a one-click demo); 2 Describe & search (Stage 1, with a Confirm button per
-  candidate); 3 Confirm & re-identify (route tracing, per-camera confirmation, then all ranked candidates with their
-  evidence vectors and frames); Track review (manual tracking check); SOM; Evaluation (benchmark results).
+The interface follows the layout used in vehicle Re-ID work: a query vehicle and a ranked list of matches, labelled
+with camera and time. It is deliberately simple, with one search page and one analysis page.
+- **Search page.** **① Find the vehicle**: describe it (colour, type, partial plate, optional cues or free text) or pick
+  it straight from a camera's list of vehicles, then click **Select**. **② Its route across the cameras**: a timeline
+  of the vehicle's sightings, with the suggested ones marked ⭐ until confirmed. **③ Where else was it seen?**: for each
+  other camera, the top three ranked matches with time and score, and a **✓ Same vehicle** button. A *Why these
+  matches?* panel shows the evidence vector behind every candidate.
+- **Analysis page.** VeRi-776 benchmark results, the SOM vehicle map and a manual tracking check.
+- **Sidebar.** The cameras being searched (the four demo cameras load automatically), *Use your own videos* (upload
+  and process), *Matching settings* (matcher, time window, suggestion threshold) and sign-out.
+- **Admin sign-in** (Streamlit secrets or environment variables, constant-time comparison) and the V-Trace theme
+  (logo, Inter font, teal/navy palette; dark by default, light available).
 
 ![Figure 1 – Stage 1: describe and search](screenshots/search.png)
 
-![Figure 2 – Stage 2: the vehicle's route across cameras, with per-camera candidates to confirm](screenshots/path.png)
+![Figure 2 – the vehicle's route across cameras after confirming each camera (screenshot)](screenshots/path.png)
 
 ## 4. Technique group mapping
 
@@ -352,7 +359,7 @@ and is not automatically better than a transparent one.
 1. Install (Windows, Python 3.11): `python -m venv .venv`, then `.venv\Scripts\pip install -r requirements.txt`.
 2. Create the admin account: copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and set a username and password.
 3. Run `.venv\Scripts\python -m streamlit run app.py`, open http://localhost:8501 and sign in.
-4. Demo footage: place the two Commons clips in `data/videos/raw/` and run `python scripts/prepare_demo_clips.py`; in the app, tab 1 → **Quick demo**.
+4. Demo footage: place the two Commons clips in `data/videos/raw/` and run `python scripts/prepare_demo_clips.py`; the app loads the demo cameras automatically.
 5. Benchmark: download VeRi-776 (request from the authors), then run `python scripts/train_eval.py` and `python scripts/demo_eval.py`.
 
 Step-by-step demo scenarios and a guide for assessors are in `docs/DEMO_GUIDE.md`.
