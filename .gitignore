@@ -5,7 +5,9 @@ data/index/
 data/cache/
 data/VeRi/
 *.pt
-models/*.joblib
 .claude/
 .pytest_cache/
 .streamlit/secrets.toml
+submission/
+deliverables/*.mp4
+docs/build/_*

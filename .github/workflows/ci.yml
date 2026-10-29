@@ -18,7 +18,7 @@ jobs:
 
       # Only the lightweight deps: the tests use synthetic tracklets and the locked/signed-in app, no PyTorch
       - name: Install test dependencies
-        run: pip install numpy pandas matplotlib scikit-learn minisom joblib opencv-python-headless streamlit pytest
+        run: pip install numpy pandas matplotlib scikit-learn==1.9.1 minisom joblib opencv-python-headless streamlit pytest
 
       - name: Byte-compile every module (catches syntax errors in the full app)
         run: python -m compileall -q app.py vtrace scripts

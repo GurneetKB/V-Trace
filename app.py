@@ -33,6 +33,7 @@ try {
 st.html("<style>[data-testid=stElementContainer][height='1px']:has(iframe) {display: none}</style>")  # hide the helper
 
 LOGO = config.ROOT / "assets" / "nus_iss_logo.png"
+DEMO_CAMERAS = ["camA_west.mp4", "camB_centre.mp4", "camC_east.mp4", "camD_other_road.mp4"]  # scripts/prepare_demo_clips.py
 
 
 def admin_credentials():
@@ -137,6 +138,12 @@ tabs = st.tabs(["1 · Upload videos", "2 · Describe & search", "3 · Confirm & 
 with tabs[0]:
     st.subheader("Step 1 – choose the camera videos to search")
     st.write("Each video is treated as one camera. Only the videos you process here are searched in steps 2 and 3.")
+    bundled = VehicleIndex.bundled_videos()
+    demo = [n for n in DEMO_CAMERAS if (config.VIDEO_DIR / n).exists() or n[:-4] in bundled]
+    if demo and st.button(f"▶ Quick demo: use the {len(demo)} demo cameras", type="primary",
+                          help="Three cameras along one street (the same cars pass A → B → C) plus a camera on "
+                               "another road. Already-processed cameras load instantly."):
+        st.session_state.demo_go = True
     files = st.file_uploader("Upload videos", type=["mp4", "avi", "mov", "mkv"], accept_multiple_files=True)
     if st.button("No footage? Generate two sample camera clips"):
         from vtrace.samples import make_sample_videos
@@ -152,9 +159,21 @@ with tabs[0]:
     st.caption(f"Analyses every {stride}{'nd' if stride == 2 else 'rd' if stride == 3 else 'th'} frame · "
                f"plate OCR {'on' if use_ocr else 'off'} · videos already processed with the same setting load instantly")
 
-    if st.button("Process videos", type="primary", disabled=not (files or use_existing)):
+    demo_go = st.session_state.pop("demo_go", False)
+    if st.button("Process videos", disabled=not (files or use_existing)) or demo_go:
         import time
         t0 = time.time()
+        from_bundle = []
+        if demo_go:
+            files, (stride, use_ocr) = [], presets["Balanced"]
+            use_existing = [n for n in demo if (config.VIDEO_DIR / n).exists()]
+            # cameras whose video is not here (e.g. on Streamlit Cloud) come pre-processed from demo_bundle/
+            from_bundle = [n[:-4] for n in demo if not (config.VIDEO_DIR / n).exists()
+                           and index.processed.get(n[:-4]) != "demo bundle"]
+            index.import_bundle(from_bundle)
+            for n in demo:
+                if not (config.VIDEO_DIR / n).exists():
+                    st.write(f"✔ {n} – pre-processed demo camera, loaded instantly")
         paths = []
         for f in files or []:
             dest = config.VIDEO_DIR / f.name
@@ -172,7 +191,8 @@ with tabs[0]:
             bar.progress(1.0, text=f"✔ {p.name}: {n} vehicles")
         index.save()
         # the processed videos become this session's search scope; earlier results no longer apply
-        st.session_state.active = [p.stem for p in paths]
+        st.session_state.active = [p.stem for p in paths] + [n[:-4] for n in demo if demo_go and
+                                                             not (config.VIDEO_DIR / n).exists()]
         for key in ("stage1", "confirmed"):
             st.session_state.pop(key, None)
         st.session_state.done_msg = f"Ready in {time.time() - t0:.0f} s – go to step 2 to describe the vehicle."
@@ -239,7 +259,8 @@ with tabs[2]:
             st.image(q["frame_path"])
         rf = get_rf()
         c1, c2, c3, c4 = st.columns(4)
-        method = c1.selectbox("Matching method", reid.METHODS, index=2 if rf else 1,
+        method = c1.selectbox("Matching method", reid.METHODS,
+                              index=reid.METHODS.index("random forest" if rf else "weighted fusion"),
                               help="Random Forest needs models/rf_matcher.joblib (scripts/train_eval.py); "
                                    "otherwise it falls back to weighted fusion.")
         use_som = c2.checkbox("SOM candidate pre-filter", value=False)
@@ -248,7 +269,66 @@ with tabs[2]:
         if method == "random forest" and rf is None:
             st.warning("No trained Random Forest found – using weighted fusion. Run `python scripts/train_eval.py`.")
 
-        hits = reid.reid_search(view, q, method, rf, use_som, radius, same_video, top_k=20)
+        # ---- route tracing: an automatic suggestion, then the user confirms the sighting in each camera
+        st.markdown("### 🛣️ Trace this vehicle's route")
+        p1, p2, p3 = st.columns(3)
+        min_score = p1.slider("Minimum match score", 0.0, 1.0, 0.5, 0.05,
+                              help="The suggested route only includes a camera whose best sighting scores at least "
+                                   "this much and is clearly ahead of that camera's runner-up.")
+        use_gap = p2.checkbox("Cameras share a clock", value=True,
+                              help="Only consider sightings within the time window below of the route "
+                                   "(turn off when the videos were not recorded at the same time).")
+        gap = p3.slider("Max time gap between cameras (s)", 1, 60, 10, disabled=not use_gap)
+        max_gap = gap if use_gap else None
+
+        if st.session_state.get("hops_for") != q["uid"]:       # confirmed sightings per camera, for this target
+            st.session_state.hops, st.session_state.hops_for = {}, q["uid"]
+        hops = st.session_state.hops
+        members = [q] + [view.get(u) for u in hops.values()]
+        suggested = reid.trace_path(view, q, method, rf, min_score, max_gap)
+        starred = {t["video"]: t["uid"] for _, t in suggested if t["uid"] != q["uid"]}
+        route = sorted(members, key=lambda t: t["start_t"]) if hops else [t for _, t in suggested]
+        scores = {t["uid"]: s for s, t in suggested}
+
+        st.markdown("**Confirmed route**" if hops else "**Suggested route** (automatic – confirm each camera below)")
+        cols = st.columns(len(route) * 2 - 1)
+        for k, t in enumerate(route):
+            with cols[2 * k]:
+                with st.container(border=True):
+                    st.markdown(f"**{t['camera']}**  \n{fmt_time(t['start_t'])}–{fmt_time(t['end_t'])}")
+                    st.image(t["crop_paths"][0], width="stretch")
+                    st.caption("confirmed target" if t["uid"] == q["uid"] else
+                               "✔ confirmed" if t["uid"] in hops.values() else f"suggested · {scores[t['uid']]:.0%}")
+            if k < len(route) - 1:
+                cols[2 * k + 1].markdown("<h2 style='text-align:center;margin-top:3rem'>→</h2>",
+                                         unsafe_allow_html=True)
+        if len(route) == 1:
+            st.caption("No camera has an unambiguous match yet – pick the right sighting in each camera below.")
+
+        st.markdown("**Confirm the sighting in each camera.** Top 3 candidates per camera, each scored against every "
+                    "confirmed view of the vehicle (⭐ = in the suggested route). Each confirmation updates the rest.")
+        cams = reid.camera_candidates(view, members, method, rf, max_gap, k=3)
+        for video in sorted(set(cams) | set(hops)):
+            with st.container(border=True):
+                if video in hops:
+                    t = view.get(hops[video])
+                    a1, a2, a3 = st.columns([1, 3, 1])
+                    a1.image(t["crop_paths"][0], width="stretch")
+                    a2.markdown(f"**{video}** · ✔ confirmed  \n{describe_tracklet(t)}")
+                    a3.button("Undo", key=f"undo_{video}", on_click=hops.pop, args=(video,))
+                    continue
+                st.markdown(f"**{video}**")
+                cc = st.columns(3)
+                for col, (score, t) in zip(cc, cams[video]):
+                    col.image(t["crop_paths"][0], width=170)
+                    col.caption(f"{'⭐ ' if starred.get(video) == t['uid'] else ''}track {t['track_id']} · "
+                                f"{fmt_time(t['start_t'])}–{fmt_time(t['end_t'])} · score {score:.0%}")
+                    col.button("✓ Same vehicle", key=f"hop_{t['uid']}", on_click=hops.__setitem__,
+                               args=(video, t["uid"]))
+
+        st.markdown("### All ranked candidates")
+        hits = reid.reid_search(view, q, method, rf, use_som, radius, same_video, top_k=20,
+                                max_gap_s=gap if use_gap else None)
         if not hits:
             st.warning("No candidate vehicles in the other videos of this session.")
         for rank, (score, t, f) in enumerate(hits, 1):

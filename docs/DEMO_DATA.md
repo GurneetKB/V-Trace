@@ -11,26 +11,26 @@ not committed (see `.gitignore`). Download them into `data/videos/raw/` with the
 
 ## Demo cameras
 
+Clip A is a wide 1080p shot of a street that vehicles cross from one side to the other in 5–10 s. It is cut into
+three non-overlapping zones along the road, with gaps between them, and each zone gets its own exposure, colour cast
+and sharpness, like three cameras placed along the street (`docs/figures/demo_zones.jpg`).
+
 | Camera | Built from | Purpose |
 |---|---|---|
-| `camA_main_road` | clip A, 1–31 s | real footage, main camera |
-| `camB_second_view` | clip A, 2.5–32.5 s, re-framed (crop + zoom), darker, colder colours | **simulated** second viewpoint of the same road: the same vehicles reappear, so cross-camera Re-ID has a true match |
-| `camC_other_road` | clip B, 1–31 s | real footage of a different road: distractor camera |
+| `camA_west` | clip A, 1–46 s, left zone (x 0–560, y 380–940) | reference camera |
+| `camB_centre` | clip A, middle zone (x 680–1240); darker, colder, slightly soft | second camera on the same street |
+| `camC_east` | clip A, right zone (x 1360–1920); warmer, higher contrast | third camera on the same street |
+| `camD_other_road` | clip B, 1–31 s, 720p | a different road: distractor camera, its vehicles never appear in A–C |
 
-Public multi-camera traffic datasets with re-appearing vehicles (e.g. CityFlow) require a data-use request, so
-the second viewpoint is simulated. This is stated wherever demo results are reported. Quantitative cross-camera
-Re-ID performance comes from VeRi-776, not from these clips.
+A car on the near lane is seen in camA, then camB, then camC (far lane: C → B → A), with real changes in scale and
+viewpoint, so the app's **traced path** can follow it camera by camera.
 
-## Demo run (results/demo/)
+Public multi-camera traffic datasets with re-appearing vehicles (e.g. CityFlow) require a data-use request, so the
+three cameras are zones of one recording. This is stated wherever demo results are reported. The VeRi-776 benchmark
+provides the separate-camera evaluation.
 
-`python scripts/demo_walkthrough.py --color white --cue "sticker / decal" --confirm-video camA_main_road`
-on 173 tracklets (camA 71, camB 70, camC 32). No Random Forest is trained yet, so Stage 2 uses weighted fusion.
+## Demo evaluation
 
-- **Stage 1:** the top candidate is the white estate car with the "PRVA" logo decal in camA (score 0.98: colour 1.00, decal cue 0.93). See `stage1.jpg`.
-- **Stage 2:** after confirming it, the #1 sighting is the same car in camB (fusion 0.70, ResNet cosine 0.89, CLIP cosine 0.88). The next candidates are visibly different vehicles (scores 0.60–0.64). See `stage2.jpg`.
-- **Observed failure modes** (for the report):
-  - *Attribute error:* CLIP labels the estate car as an "mpv".
-  - *Track fragmentation:* one vehicle is split into several tracklets when it is occluded by buses or by the frame edge. Examples: the yellow Post van and the "Alan Ford" bus in `tracklets_camA_main_road.jpg`.
-  - *Background tracklets:* parked cars that are partly occluded give blurry, low-information crops.
-  - *Plates:* no plate was read at this distance, so plate evidence was unavailable. This is the scenario V-Trace is designed for.
-- **Manual tracking check:** tick the clean tracklets in the app's *Track review* tab. The contact sheets `tracklets_*.jpg` show the first crop of every tracklet.
+`python scripts/demo_eval.py` tracks the uncropped clip once, maps every camera tracklet back onto it by box overlap
+(pseudo ground truth), and reports tracking quality, cross-camera Re-ID and path-tracing accuracy in
+`results/demo_eval.json`, together with the best demo vehicles (`docs/DEMO_GUIDE.md` uses them).

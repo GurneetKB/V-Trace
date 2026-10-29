@@ -22,16 +22,17 @@
     }
   },
   "rf_feature_importance": {
-    "app_cos": 0.04798202265146746,
-    "clip_cos": 0.10432002703959793,
-    "color_hist": 0.04975270808281568,
-    "color_agree": 0.21101461587111173,
-    "type_agree": 0.1128742027451956,
-    "plate_sim": 0.24842283615771357,
-    "plate_avail": 0.06268434096217793,
-    "cue_sim": 0.02601413880523698,
-    "track_quality": 0.014054661324442063,
-    "track_consist": 0.12288044636024095
+    "metric_cos": 0.4462627421440295,
+    "app_cos": 0.02452847591194014,
+    "clip_cos": 0.05791885582722419,
+    "color_hist": 0.031292078242128575,
+    "color_agree": 0.1266031213979665,
+    "type_agree": 0.06192523634723334,
+    "plate_sim": 0.13472807788993957,
+    "plate_avail": 0.033913160398042284,
+    "cue_sim": 0.009040370153137297,
+    "track_quality": 0.008052139083541283,
+    "track_consist": 0.0657357426048173
   },
   "description_search": {
     "colour + type": {
@@ -57,52 +58,62 @@
         "rank5": 18.0,
         "mAP": 10.31
       },
-      "appearance only": {
-        "rank1": 61.33,
-        "rank5": 79.33,
-        "mAP": 27.12
-      },
-      "plate_sim": {
-        "rank1": 100.0,
-        "rank5": 100.0,
-        "mAP": 100.0
-      },
-      "random forest": {
-        "rank1": 100.0,
-        "rank5": 100.0,
-        "mAP": 98.89
-      },
-      "track_quality": {
-        "rank1": 0.67,
-        "rank5": 1.67,
-        "mAP": 3.39
-      },
       "clip_cos": {
         "rank1": 58.33,
         "rank5": 75.67,
         "mAP": 28.16
       },
-      "color_hist": {
-        "rank1": 24.0,
-        "rank5": 44.33,
-        "mAP": 12.68
+      "app_cos": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "weighted fusion": {
+        "rank1": 99.67,
+        "rank5": 100.0,
+        "mAP": 99.31
       },
       "color_agree": {
         "rank1": 5.33,
         "rank5": 16.33,
         "mAP": 11.28
       },
-      "weighted fusion": {
-        "rank1": 100.0,
-        "rank5": 100.0,
-        "mAP": 98.97
+      "track_quality": {
+        "rank1": 0.67,
+        "rank5": 1.67,
+        "mAP": 3.39
+      },
+      "metric_cos": {
+        "rank1": 77.0,
+        "rank5": 91.33,
+        "mAP": 48.03
       },
       "track_consist": {
         "rank1": 0.67,
         "rank5": 5.33,
         "mAP": 3.47
       },
-      "app_cos": {
+      "plate_sim": {
+        "rank1": 100.0,
+        "rank5": 100.0,
+        "mAP": 100.0
+      },
+      "color_hist": {
+        "rank1": 24.0,
+        "rank5": 44.33,
+        "mAP": 12.68
+      },
+      "random forest": {
+        "rank1": 97.67,
+        "rank5": 100.0,
+        "mAP": 88.14
+      },
+      "learned metric": {
+        "rank1": 77.0,
+        "rank5": 91.33,
+        "mAP": 48.03
+      },
+      "appearance only": {
         "rank1": 61.33,
         "rank5": 79.33,
         "mAP": 27.12
@@ -119,52 +130,62 @@
         "rank5": 18.0,
         "mAP": 10.31
       },
-      "appearance only": {
-        "rank1": 61.33,
-        "rank5": 79.33,
-        "mAP": 27.12
-      },
-      "plate_sim": {
-        "rank1": 15.67,
-        "rank5": 27.0,
-        "mAP": 30.16
-      },
-      "random forest": {
-        "rank1": 76.0,
-        "rank5": 91.67,
-        "mAP": 50.67
-      },
-      "track_quality": {
-        "rank1": 0.67,
-        "rank5": 1.67,
-        "mAP": 3.39
-      },
       "clip_cos": {
         "rank1": 58.33,
         "rank5": 75.67,
         "mAP": 28.16
       },
-      "color_hist": {
-        "rank1": 24.0,
-        "rank5": 44.33,
-        "mAP": 12.68
+      "app_cos": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "weighted fusion": {
+        "rank1": 84.0,
+        "rank5": 95.33,
+        "mAP": 63.55
       },
       "color_agree": {
         "rank1": 5.33,
         "rank5": 16.33,
         "mAP": 11.28
       },
-      "weighted fusion": {
-        "rank1": 74.67,
-        "rank5": 91.67,
-        "mAP": 48.19
+      "track_quality": {
+        "rank1": 0.67,
+        "rank5": 1.67,
+        "mAP": 3.39
+      },
+      "metric_cos": {
+        "rank1": 77.0,
+        "rank5": 91.33,
+        "mAP": 48.03
       },
       "track_consist": {
         "rank1": 0.67,
         "rank5": 5.33,
         "mAP": 3.47
       },
-      "app_cos": {
+      "plate_sim": {
+        "rank1": 15.67,
+        "rank5": 27.0,
+        "mAP": 30.16
+      },
+      "color_hist": {
+        "rank1": 24.0,
+        "rank5": 44.33,
+        "mAP": 12.68
+      },
+      "random forest": {
+        "rank1": 82.0,
+        "rank5": 95.33,
+        "mAP": 59.28
+      },
+      "learned metric": {
+        "rank1": 77.0,
+        "rank5": 91.33,
+        "mAP": 48.03
+      },
+      "appearance only": {
         "rank1": 61.33,
         "rank5": 79.33,
         "mAP": 27.12
@@ -181,52 +202,62 @@
         "rank5": 18.0,
         "mAP": 10.31
       },
-      "appearance only": {
-        "rank1": 61.33,
-        "rank5": 79.33,
-        "mAP": 27.12
-      },
-      "plate_sim": {
-        "rank1": 77.33,
-        "rank5": 90.67,
-        "mAP": 44.75
-      },
-      "random forest": {
-        "rank1": 65.33,
-        "rank5": 84.67,
-        "mAP": 37.26
-      },
-      "track_quality": {
-        "rank1": 0.67,
-        "rank5": 1.67,
-        "mAP": 3.39
-      },
       "clip_cos": {
         "rank1": 58.33,
         "rank5": 75.67,
         "mAP": 28.16
       },
-      "color_hist": {
-        "rank1": 24.0,
-        "rank5": 44.33,
-        "mAP": 12.68
+      "app_cos": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "weighted fusion": {
+        "rank1": 91.33,
+        "rank5": 98.67,
+        "mAP": 69.52
       },
       "color_agree": {
         "rank1": 5.33,
         "rank5": 16.33,
         "mAP": 11.28
       },
-      "weighted fusion": {
-        "rank1": 87.67,
-        "rank5": 96.67,
-        "mAP": 58.22
+      "track_quality": {
+        "rank1": 0.67,
+        "rank5": 1.67,
+        "mAP": 3.39
+      },
+      "metric_cos": {
+        "rank1": 77.0,
+        "rank5": 91.33,
+        "mAP": 48.03
       },
       "track_consist": {
         "rank1": 0.67,
         "rank5": 5.33,
         "mAP": 3.47
       },
-      "app_cos": {
+      "plate_sim": {
+        "rank1": 77.33,
+        "rank5": 90.67,
+        "mAP": 44.75
+      },
+      "color_hist": {
+        "rank1": 24.0,
+        "rank5": 44.33,
+        "mAP": 12.68
+      },
+      "random forest": {
+        "rank1": 76.67,
+        "rank5": 91.33,
+        "mAP": 48.2
+      },
+      "learned metric": {
+        "rank1": 77.0,
+        "rank5": 91.33,
+        "mAP": 48.03
+      },
+      "appearance only": {
         "rank1": 61.33,
         "rank5": 79.33,
         "mAP": 27.12
@@ -243,52 +274,62 @@
         "rank5": 18.0,
         "mAP": 10.31
       },
-      "appearance only": {
-        "rank1": 61.33,
-        "rank5": 79.33,
-        "mAP": 27.12
-      },
-      "plate_sim": {
-        "rank1": 1.0,
-        "rank5": 1.0,
-        "mAP": 3.6
-      },
-      "random forest": {
-        "rank1": 56.0,
-        "rank5": 79.0,
-        "mAP": 29.67
-      },
-      "track_quality": {
-        "rank1": 0.67,
-        "rank5": 1.67,
-        "mAP": 3.39
-      },
       "clip_cos": {
         "rank1": 58.33,
         "rank5": 75.67,
         "mAP": 28.16
       },
-      "color_hist": {
-        "rank1": 24.0,
-        "rank5": 44.33,
-        "mAP": 12.68
+      "app_cos": {
+        "rank1": 61.33,
+        "rank5": 79.33,
+        "mAP": 27.12
+      },
+      "weighted fusion": {
+        "rank1": 71.33,
+        "rank5": 88.67,
+        "mAP": 43.3
       },
       "color_agree": {
         "rank1": 5.33,
         "rank5": 16.33,
         "mAP": 11.28
       },
-      "weighted fusion": {
-        "rank1": 54.67,
-        "rank5": 74.67,
-        "mAP": 27.8
+      "track_quality": {
+        "rank1": 0.67,
+        "rank5": 1.67,
+        "mAP": 3.39
+      },
+      "metric_cos": {
+        "rank1": 77.0,
+        "rank5": 91.33,
+        "mAP": 48.03
       },
       "track_consist": {
         "rank1": 0.67,
         "rank5": 5.33,
         "mAP": 3.47
       },
-      "app_cos": {
+      "plate_sim": {
+        "rank1": 1.0,
+        "rank5": 1.0,
+        "mAP": 3.6
+      },
+      "color_hist": {
+        "rank1": 24.0,
+        "rank5": 44.33,
+        "mAP": 12.68
+      },
+      "random forest": {
+        "rank1": 69.67,
+        "rank5": 88.33,
+        "mAP": 42.42
+      },
+      "learned metric": {
+        "rank1": 77.0,
+        "rank5": 91.33,
+        "mAP": 48.03
+      },
+      "appearance only": {
         "rank1": 61.33,
         "rank5": 79.33,
         "mAP": 27.12
@@ -309,23 +350,23 @@
       "radius_1": {
         "candidates_kept_%": 6.5710845792359525,
         "true_match_recall_%": 31.924896644749584,
-        "rank1": 49.67,
-        "rank5": 68.33,
-        "mAP": 21.55
+        "rank1": 59.67,
+        "rank5": 74.0,
+        "mAP": 24.61
       },
       "radius_2": {
         "candidates_kept_%": 16.968333114350447,
         "true_match_recall_%": 43.71735669015081,
-        "rank1": 53.67,
-        "rank5": 74.67,
-        "mAP": 23.74
+        "rank1": 66.33,
+        "rank5": 81.33,
+        "mAP": 28.91
       },
       "radius_3": {
         "candidates_kept_%": 29.542728680728448,
         "true_match_recall_%": 53.80765927971811,
-        "rank1": 54.67,
-        "rank5": 75.67,
-        "mAP": 25.13
+        "rank1": 68.33,
+        "rank5": 83.33,
+        "mAP": 31.67
       }
     }
   }

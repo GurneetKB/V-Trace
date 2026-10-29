@@ -1,0 +1,163 @@
+{
+ "tracklets": {
+  "camA_west": 71,
+  "camB_centre": 42,
+  "camC_east": 46,
+  "camD_other_road": 28
+ },
+ "zone_tracklets_with_reference_id": 136,
+ "vehicles_in_2plus_cameras": 19,
+ "vehicles_in_all_3": 7,
+ "tracking": {
+  "clean_tracklets_%": 61.029411764705884,
+  "mean_purity": 0.901315800529117,
+  "tracklets_per_vehicle_per_camera": 1.1929824561403508,
+  "unmapped_tracklets_%": 14.465408805031444
+ },
+ "time_window_s": 10,
+ "min_path_score": 0.5,
+ "methods": {
+  "appearance only": {
+   "queries": 55,
+   "Rank-1": 23.636363636363637,
+   "Rank-5": 54.54545454545455,
+   "mAP": 26.252073343154276,
+   "route_precision": 42.857142857142854,
+   "route_recall": 3.8461538461538463,
+   "camera_hit@1": 28.205128205128204,
+   "camera_hit@3": 46.15384615384615
+  },
+  "learned metric": {
+   "queries": 55,
+   "Rank-1": 30.90909090909091,
+   "Rank-5": 63.63636363636363,
+   "mAP": 37.58738871856431,
+   "route_precision": 78.57142857142857,
+   "route_recall": 14.102564102564102,
+   "camera_hit@1": 43.58974358974359,
+   "camera_hit@3": 61.53846153846154
+  },
+  "weighted fusion": {
+   "queries": 55,
+   "Rank-1": 36.36363636363637,
+   "Rank-5": 56.36363636363637,
+   "mAP": 39.65065731612893,
+   "route_precision": 100.0,
+   "route_recall": 11.538461538461538,
+   "camera_hit@1": 51.282051282051285,
+   "camera_hit@3": 64.1025641025641
+  },
+  "random forest": {
+   "queries": 55,
+   "Rank-1": 38.18181818181818,
+   "Rank-5": 61.81818181818182,
+   "mAP": 40.8960717592793,
+   "route_precision": 70.0,
+   "route_recall": 26.923076923076923,
+   "camera_hit@1": 47.43589743589744,
+   "camera_hit@3": 65.38461538461539
+  }
+ },
+ "methods_no_window": {
+  "appearance only": {
+   "queries": 55,
+   "Rank-1": 18.181818181818183,
+   "Rank-5": 34.54545454545455,
+   "mAP": 19.53929615867427,
+   "route_precision": 0.0,
+   "route_recall": 0.0,
+   "camera_hit@1": 20.512820512820515,
+   "camera_hit@3": 33.333333333333336
+  },
+  "learned metric": {
+   "queries": 55,
+   "Rank-1": 29.09090909090909,
+   "Rank-5": 52.72727272727273,
+   "mAP": 31.40503805801934,
+   "route_precision": 55.0,
+   "route_recall": 14.102564102564102,
+   "camera_hit@1": 39.743589743589745,
+   "camera_hit@3": 53.84615384615385
+  },
+  "weighted fusion": {
+   "queries": 55,
+   "Rank-1": 23.636363636363637,
+   "Rank-5": 49.09090909090909,
+   "mAP": 29.7426303996448,
+   "route_precision": 77.77777777777777,
+   "route_recall": 8.974358974358974,
+   "camera_hit@1": 47.43589743589744,
+   "camera_hit@3": 57.69230769230769
+  },
+  "random forest": {
+   "queries": 55,
+   "Rank-1": 27.272727272727273,
+   "Rank-5": 54.54545454545455,
+   "mAP": 31.448631336921455,
+   "route_precision": 50.0,
+   "route_recall": 23.076923076923077,
+   "camera_hit@1": 39.743589743589745,
+   "camera_hit@3": 61.53846153846154
+  }
+ },
+ "demo_vehicles": [
+  {
+   "query": "camC_east#294",
+   "colour": "red",
+   "type": "sedan",
+   "class": "car",
+   "path": [
+    [
+     "camA_west#481",
+     0.68,
+     40.8,
+     42.2
+    ],
+    [
+     "camB_centre#156",
+     0.67,
+     42.0,
+     43.6
+    ],
+    [
+     "camC_east#294",
+     1.0,
+     43.6,
+     44.2
+    ]
+   ]
+  },
+  {
+   "query": "camA_west#36",
+   "colour": "red",
+   "type": "sedan",
+   "class": "car",
+   "path": [
+    [
+     "camA_west#36",
+     1.0,
+     1.0,
+     6.7
+    ],
+    [
+     "camB_centre#18",
+     0.65,
+     6.6,
+     7.8
+    ],
+    [
+     "camC_east#55",
+     0.68,
+     7.9,
+     8.3
+    ]
+   ]
+  }
+ ],
+ "failure_example": {
+  "query": "camA_west#1",
+  "wrong_top1": "camD_other_road#14",
+  "truth": "camB_centre#25",
+  "score": 0.63
+ }
+}
