@@ -16,7 +16,7 @@ from vtrace import config, reid, search
 from vtrace.index import VehicleIndex
 from vtrace.video import fmt_time
 
-st.set_page_config(page_title="V-Trace", page_icon="🚗", layout="wide")
+st.set_page_config(page_title="V-Trace", page_icon=str(config.ROOT / "assets" / "vtrace_icon.png"), layout="wide")
 
 # Dark is the default theme. Streamlit otherwise follows the OS setting (and stores "System" on first load), so on
 # a viewer's first visit we store "Dark" as their theme choice and reload once; our own marker makes sure this
@@ -32,7 +32,12 @@ try {
 </script>""", height=1)
 st.html("<style>[data-testid=stElementContainer][height='1px']:has(iframe) {display: none}</style>")  # hide the helper
 
-LOGO = config.ROOT / "assets" / "nus_iss_logo.png"
+ASSETS = config.ROOT / "assets"
+
+
+def logo():
+    """The V-Trace logo for the active theme (white lettering on dark, navy on light)."""
+    return str(ASSETS / ("vtrace_logo_light.png" if st.context.theme.type == "light" else "vtrace_logo_dark.png"))
 DEMO_CAMERAS = ["camA_west.mp4", "camB_centre.mp4", "camC_east.mp4", "camD_other_road.mp4"]  # scripts/prepare_demo_clips.py
 
 
@@ -52,8 +57,8 @@ def require_admin():
         return
     _, mid, _ = st.columns([1, 1.2, 1])
     with mid:
-        st.image(str(LOGO), width=260)
-        st.title("🚗 V-Trace")
+        st.image(logo(), width="stretch")
+        st.markdown(":green[**DESCRIBE → SEARCH → CONFIRM → RE-IDENTIFY**]")
         st.caption("Multi-attribute vehicle search & re-identification · admin access only")
         user, pwd = admin_credentials()
         if not (user and pwd):
@@ -111,7 +116,7 @@ if "view" not in st.session_state or st.session_state.get("view_for") != active:
 view = st.session_state.view                          # all searching / Re-ID happens on these videos only
 
 with st.sidebar:
-    st.image(str(LOGO), width="stretch")
+    st.image(logo(), width="stretch")
     st.write(f"Signed in as **{st.session_state.admin_user}**")
     if st.button("Sign out", width="stretch"):
         st.session_state.clear()
@@ -127,9 +132,9 @@ with st.sidebar:
     st.caption("Workflow: 1 upload → 2 describe & search → confirm → 3 re-identify")
     st.caption("Light / dark mode: ⋮ menu (top right) → Settings → Theme")
 
-st.title("🚗 V-Trace")
-st.caption("Multi-attribute vehicle search & re-identification · **Describe → Search → Confirm → Re-identify** · "
-           "Results are ranked candidates for human review, not definitive identification.")
+st.title("Multi-Attribute Vehicle Re-Identification")
+st.markdown(":green[**DESCRIBE → SEARCH → CONFIRM → RE-IDENTIFY**]")
+st.caption("Results are ranked candidates for human review, not definitive identification.")
 
 tabs = st.tabs(["1 · Upload videos", "2 · Describe & search", "3 · Confirm & re-identify",
                 "Track review", "SOM (unsupervised)", "Evaluation"])

@@ -83,6 +83,7 @@ class Page:
         await self.cmd("Input.insertText", text=text)
 
     async def shot(self, name, scroll_to=None):
+        await self.cmd("Input.dispatchMouseEvent", type="mouseMoved", x=1430, y=890)   # no hover tooltips
         if scroll_to:
             await self.js(f"(() => {{ const e = {scroll_to}; e && e.scrollIntoView({{block: 'start'}}); }})()")
             await asyncio.sleep(1.0)

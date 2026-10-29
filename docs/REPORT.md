@@ -365,7 +365,7 @@ Step-by-step demo scenarios and a guide for assessors are in `docs/DEMO_GUIDE.md
 | Datasets | demo cameras (`data/videos/`, built by `scripts/prepare_demo_clips.py`); VeRi-776 by request from its authors |
 | Results | `results/metrics.json`, `results/tables.md`, `results/demo_eval.json`, figures |
 | Final report | this document |
-| Presentation slides | `V-Trace_First_Presentation.pptx`, `V-Trace_Final_Presentation.pptx` |
+| Presentation slides | `V-Trace_First_Presentation.pdf`, `V-Trace_Final_Presentation.pptx` |
 | Demo guide | `docs/DEMO_GUIDE.md` |
 
 ## AI declaration

@@ -62,7 +62,7 @@ Then edit `username` and `password` in `.streamlit/secrets.toml`. This file is g
 You can also set the `VTRACE_ADMIN_USER` and `VTRACE_ADMIN_PASSWORD` environment variables instead.
 With no account configured, the app stays locked and says how to set one up. **Sign out** is at the top of the sidebar.
 
-**Theme.** The app uses the teal/navy palette from the proposal deck and opens in **dark mode**.
+**Theme.** The app uses the V-Trace logo, the Inter font and the teal/navy palette from the presentation deck, and opens in **dark mode**.
 To switch to light (or back), use the **⋮** menu (top right) → **Settings** → **Theme**. The browser remembers the choice.
 
 | Tab | What it does |
@@ -192,7 +192,7 @@ synthetic tracklets, so the tests need no models or downloads:
 ```
 V-Trace/
 ├── app.py                    Streamlit UI (admin sign-in + the whole human-in-the-loop workflow)
-├── assets/                   NUS-ISS logo shown on the sign-in page and sidebar
+├── assets/                   V-Trace logo (dark/light variants) and browser-tab icon
 ├── vtrace/
 │   ├── config.py             all settings, vocabularies, fusion weights
 │   ├── video.py              ingestion, YOLO detection, ByteTrack tracking, tracklets + evidence frames

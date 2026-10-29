@@ -33,7 +33,7 @@ def main():
             z.write(src, f"Group21_V-Trace/{arc}")
     missing = [n for n in DEMO if not (config.VIDEO_DIR / n).exists()]
     have = {Path(a).name for _, a in entries}
-    for want in ("V-Trace_Final_Report.pdf", "V-Trace_Final_Presentation.pptx", "V-Trace_First_Presentation.pptx"):
+    for want in ("V-Trace_Final_Report.pdf", "V-Trace_Final_Presentation.pptx", "V-Trace_First_Presentation.pdf"):
         if want not in have:
             missing.append(want)
     if not any(n.endswith(".mp4") for n in have if not n.startswith("cam")):
