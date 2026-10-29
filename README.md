@@ -52,6 +52,19 @@ From the VS Code **Run and Debug** panel, choose **"V-Trace: Streamlit app"** an
 
 A browser tab opens at http://localhost:8501.
 
+**Admin sign-in.** The app opens on a sign-in page. Set the admin account once:
+
+```bash
+copy .streamlit\secrets.toml.example .streamlit\secrets.toml
+```
+
+Then edit `username` and `password` in `.streamlit/secrets.toml`. This file is git-ignored, so the password never reaches GitHub.
+You can also set the `VTRACE_ADMIN_USER` and `VTRACE_ADMIN_PASSWORD` environment variables instead.
+With no account configured, the app stays locked and says how to set one up. **Sign out** is at the top of the sidebar.
+
+**Theme.** The app uses the teal/navy palette from the proposal deck and opens in **dark mode**.
+To switch to light (or back), use the **⋮** menu (top right) → **Settings** → **Theme**. The browser remembers the choice.
+
 | Tab | What it does |
 |---|---|
 | **1 · Upload videos** | Upload or select the camera videos for this session and click **Process videos**. Only these videos are searched in steps 2–3. A video already processed with the same speed setting loads instantly from the cache in `data/index/`. |
@@ -80,7 +93,9 @@ The repo is ready for https://share.streamlit.io. It includes `requirements.txt`
 2. On share.streamlit.io, click **Create app** and pick the repo, branch `main` and main file `app.py`.
 3. Under **Advanced settings**, choose Python **3.11**. If the app runs out of memory, add `VTRACE_OCR = "0"`
    under Secrets/Environment to turn EasyOCR off.
-4. Click **Deploy**. The first boot installs PyTorch and downloads the model weights, which takes a few minutes.
+4. Under **Secrets**, paste the `[admin]` block from `.streamlit/secrets.toml.example` with your own username and
+   password. Without it, the deployed app stays locked.
+5. Click **Deploy**. The first boot installs PyTorch and downloads the model weights, which takes a few minutes.
 
 Community Cloud runs on a small CPU, so keep demo clips short (10–30 s). Processing locally and presenting from
 `localhost` is the most reliable option for a live demo.
@@ -171,7 +186,8 @@ synthetic tracklets, so the tests need no models or downloads:
 
 ```
 V-Trace/
-├── app.py                    Streamlit UI (the whole human-in-the-loop workflow)
+├── app.py                    Streamlit UI (admin sign-in + the whole human-in-the-loop workflow)
+├── assets/                   NUS-ISS logo shown on the sign-in page and sidebar
 ├── vtrace/
 │   ├── config.py             all settings, vocabularies, fusion weights
 │   ├── video.py              ingestion, YOLO detection, ByteTrack tracking, tracklets + evidence frames
@@ -188,6 +204,7 @@ V-Trace/
 │   └── make_sample_videos.py synthetic smoke-test clips
 ├── data/videos/              your input videos
 ├── models/  results/         generated
+├── .streamlit/               theme (light + dark), server settings, secrets.toml.example
 └── .vscode/                  launch configs + interpreter setting
 ```
 

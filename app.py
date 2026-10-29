@@ -2,7 +2,9 @@
 
 Run with:  streamlit run app.py
 """
+import hmac
 import json
+import os
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
@@ -15,6 +17,61 @@ from vtrace.index import VehicleIndex
 from vtrace.video import fmt_time
 
 st.set_page_config(page_title="V-Trace", page_icon="🚗", layout="wide")
+
+# Dark is the default theme. Streamlit otherwise follows the OS setting (and stores "System" on first load), so on
+# a viewer's first visit we store "Dark" as their theme choice and reload once; our own marker makes sure this
+# happens only once, so a later choice in ⋮ → Settings → Theme is respected.
+st.iframe("""<script>
+try {
+  const w = window.parent, s = w.localStorage, key = "stActiveTheme-" + w.location.pathname + "-v2";
+  if (!s.getItem("vtrace-dark-default")) {
+    s.setItem("vtrace-dark-default", "1");
+    if (s.getItem(key) !== JSON.stringify("Dark")) { s.setItem(key, JSON.stringify("Dark")); w.location.reload(); }
+  }
+} catch (e) {}
+</script>""", height=1)
+st.html("<style>[data-testid=stElementContainer][height='1px']:has(iframe) {display: none}</style>")  # hide the helper
+
+LOGO = config.ROOT / "assets" / "nus_iss_logo.png"
+
+
+def admin_credentials():
+    """Admin username/password from .streamlit/secrets.toml ([admin]) or VTRACE_ADMIN_USER / VTRACE_ADMIN_PASSWORD."""
+    try:
+        sec = st.secrets.get("admin", {})
+    except Exception:                                # no secrets file at all
+        sec = {}
+    return (sec.get("username") or os.environ.get("VTRACE_ADMIN_USER", ""),
+            sec.get("password") or os.environ.get("VTRACE_ADMIN_PASSWORD", ""))
+
+
+def require_admin():
+    """Admin sign-in page. Everything below this call only runs once the admin is signed in."""
+    if st.session_state.get("admin_user"):
+        return
+    _, mid, _ = st.columns([1, 1.2, 1])
+    with mid:
+        st.image(str(LOGO), width=260)
+        st.title("🚗 V-Trace")
+        st.caption("Multi-attribute vehicle search & re-identification · admin access only")
+        user, pwd = admin_credentials()
+        if not (user and pwd):
+            st.error("No admin account is configured. Add an `[admin]` section with `username` and `password` "
+                     "to `.streamlit/secrets.toml` (see `secrets.toml.example`), or to the app's Secrets on "
+                     "Streamlit Cloud, then reload.")
+            st.stop()
+        with st.form("login"):
+            u = st.text_input("Username")
+            p = st.text_input("Password", type="password")
+            if st.form_submit_button("Sign in", type="primary", width="stretch"):
+                if hmac.compare_digest(u.strip(), user) and hmac.compare_digest(p, pwd):
+                    st.session_state.admin_user = user
+                    st.rerun()
+                st.error("Incorrect username or password.")
+    st.stop()
+
+
+require_admin()
 
 
 @st.cache_resource(show_spinner="Loading vision models (first run downloads weights)...")
@@ -53,6 +110,12 @@ if "view" not in st.session_state or st.session_state.get("view_for") != active:
 view = st.session_state.view                          # all searching / Re-ID happens on these videos only
 
 with st.sidebar:
+    st.image(str(LOGO), width="stretch")
+    st.write(f"Signed in as **{st.session_state.admin_user}**")
+    if st.button("Sign out", width="stretch"):
+        st.session_state.clear()
+        st.rerun()
+    st.divider()
     st.header("V-Trace status")
     st.metric("Vehicles found", len(view))
     st.write(f"**Videos in this session:** {', '.join(active) or 'none yet'}")
@@ -61,6 +124,7 @@ with st.sidebar:
     st.write(f"**Confirmed target:** {st.session_state.get('confirmed', '-')}")
     st.divider()
     st.caption("Workflow: 1 upload → 2 describe & search → confirm → 3 re-identify")
+    st.caption("Light / dark mode: ⋮ menu (top right) → Settings → Theme")
 
 st.title("🚗 V-Trace")
 st.caption("Multi-attribute vehicle search & re-identification · **Describe → Search → Confirm → Re-identify** · "
@@ -231,13 +295,16 @@ with tabs[4]:
     else:
         som = view.som
         bmus = som.bmus(view.matrix("app_emb"))
+        ink = "#E6EEF0" if st.context.theme.type == "dark" else "#111820"   # match the active app theme
         fig, ax = plt.subplots(figsize=(5, 5))
+        fig.patch.set_alpha(0)
+        ax.tick_params(colors=ink)
         ax.imshow(som.u_matrix().T, cmap="bone_r", origin="lower")
         rng = np.random.default_rng(0)
         for (i, j), t in zip(bmus, view.tracklets):
             ax.scatter(i + rng.uniform(-.3, .3), j + rng.uniform(-.3, .3), s=25, edgecolors="k",
                        c=config.COLORS[int(np.argmax(t["color_probs"]))].replace("golden", "goldenrod"))
-        ax.set_title(f"{som.grid}x{som.grid} SOM · dots = tracklets (predicted colour)")
+        ax.set_title(f"{som.grid}x{som.grid} SOM · dots = tracklets (predicted colour)", color=ink)
         c1, c2 = st.columns([1, 1])
         c1.pyplot(fig)
         nodes = defaultdict(list)
