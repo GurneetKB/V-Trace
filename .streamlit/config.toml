@@ -5,11 +5,12 @@ headless = true
 [browser]
 gatherUsageStats = false
 
-# V-Trace palette (from the proposal deck): teal #12A7A1, navy #111820, slate #34454D, pale teal #EAF7F6.
+# V-Trace palette and font (from the first-presentation deck): teal #12A7A1, green #65C95A, navy #111820, Inter.
 # Both themes are defined so the viewer can switch in  ⋮ → Settings → Theme; app.py makes Dark the default.
 [theme]
 primaryColor = "#12A7A1"
-font = "sans-serif"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
+headingFontWeights = [700, 700, 600, 600, 600, 600]
 baseRadius = "medium"
 
 [theme.dark]
@@ -30,7 +31,7 @@ borderColor = "#34454D"
 
 [theme.light]
 primaryColor = "#12A7A1"
-backgroundColor = "#F4F7F8"
+backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#EAF7F6"
 textColor = "#111820"
 linkColor = "#0E8782"
