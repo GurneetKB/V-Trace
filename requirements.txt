@@ -15,7 +15,7 @@ open_clip_torch>=2.24
 easyocr>=1.7
 
 # Classical ML: Random Forest, linear probes, PCA; unsupervised SOM
-scikit-learn>=1.4
+scikit-learn==1.9.1   # pinned: the trained models in models/ are scikit-learn pickles
 minisom>=2.3.2
 
 # App + utilities

@@ -1,6 +1,6 @@
 """Scripted Describe -> Search -> Confirm -> Re-identify run on the current index, saved as report evidence.
 
-    python scripts/demo_walkthrough.py --color white --type estate --cue "sticker / decal" --confirm-video camA_main_road
+    python scripts/demo_walkthrough.py --color white --type estate --cue "sticker / decal" --confirm-video camA_west
 
 Writes results/demo/: walkthrough.md, stage1.jpg, stage2.jpg and one tracklet contact sheet per video
 (for the manual tracking check).

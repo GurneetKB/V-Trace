@@ -4,12 +4,18 @@ Sources (CC BY 3.0, "Sounds of Changes" project, Wikimedia Commons; see docs/DEM
     data/videos/raw/ljubljana_a.webm  <- File:Road traffic in Ljubljana.webm
     data/videos/raw/ljubljana_b.webm  <- File:Road traffic in Ljubljana – soundscape 1.webm
 
-Output (data/videos/):
-    camA_main_road.mp4     real clip A (720p)
-    camB_second_view.mp4   SIMULATED second camera on the same road: clip A re-framed (crop + zoom),
-                           darker, colder colour balance and a 1.5 s clock offset. The same vehicles
-                           appear in A and B, which gives the cross-camera Re-ID demo a true match.
-    camC_other_road.mp4    real clip B, a different road (distractor camera)
+Clip A is a wide 1080p shot of a road that vehicles cross from one side to the other in 5-10 s. It is cut
+into three non-overlapping zones along the road, with gaps between them, and each zone gets its own
+exposure / colour cast / sharpness, like three different cameras placed along the street:
+
+    camA_west.mp4    left zone   (x    0-560)  - reference camera
+    camB_centre.mp4  middle zone (x  680-1240) - darker, colder, slightly soft
+    camC_east.mp4    right zone  (x 1360-1920) - warmer, higher contrast
+
+A car driving left-to-right is therefore seen in camA, then camB, then camC (right-to-left: C, B, A), with
+real changes in scale and viewpoint along the way, which is what the "trace its path" demo needs.
+
+    camD_other_road.mp4  clip B, a different road: distractor camera (its vehicles never appear in A-C)
 
     python scripts/prepare_demo_clips.py
 """
@@ -24,7 +30,12 @@ import numpy as np
 from vtrace import config
 
 RAW = config.VIDEO_DIR / "raw"
-SIZE = (1280, 720)
+Y0, Y1 = 380, 940                        # road band of clip A (1080p)
+ZONES = {                                # name: (x0, x1, look)
+    "camA_west": (0, 560, "reference"),
+    "camB_centre": (680, 1240, "cold"),
+    "camC_east": (1360, 1920, "warm"),
+}
 
 
 def frames(path, start_s, dur_s):
@@ -41,26 +52,17 @@ def frames(path, start_s, dur_s):
     cap.release()
 
 
-def write(out, gen, transform=lambda f: f):
-    vw = None
-    n = 0
-    for f, fps in gen:
-        f = cv2.resize(transform(f), SIZE)
-        if vw is None:
-            vw = cv2.VideoWriter(str(out), cv2.VideoWriter_fourcc(*"mp4v"), fps, SIZE)
-        vw.write(f)
-        n += 1
-    vw.release()
-    print(f"wrote {out.name}: {n} frames")
-
-
-def second_view(f):
-    """Re-frame like a different camera: right-hand crop, zoom, darker and colder."""
-    h, w = f.shape[:2]
-    crop = f[int(0.12 * h):int(0.92 * h), int(0.22 * w):w]
-    crop = cv2.convertScaleAbs(crop, alpha=0.82, beta=-8)
-    b, g, r = cv2.split(crop.astype(np.int16))
-    return cv2.merge([np.clip(b + 12, 0, 255), g, np.clip(r - 10, 0, 255)]).astype(np.uint8)
+def look(f, kind):
+    """Give each zone its own camera character (exposure, white balance, sharpness)."""
+    if kind == "cold":
+        f = cv2.GaussianBlur(cv2.convertScaleAbs(f, alpha=0.85, beta=-10), (3, 3), 0)
+        b, g, r = cv2.split(f.astype(np.int16))
+        return cv2.merge([np.clip(b + 14, 0, 255), g, np.clip(r - 10, 0, 255)]).astype(np.uint8)
+    if kind == "warm":
+        f = cv2.convertScaleAbs(f, alpha=1.12, beta=-12)
+        b, g, r = cv2.split(f.astype(np.int16))
+        return cv2.merge([np.clip(b - 12, 0, 255), g, np.clip(r + 12, 0, 255)]).astype(np.uint8)
+    return f
 
 
 def main():
@@ -68,9 +70,29 @@ def main():
     missing = [p.name for p in (a, b) if not p.exists()]
     if missing:
         sys.exit(f"Missing {missing} in {RAW} - see docs/DEMO_DATA.md for the download links.")
-    write(config.VIDEO_DIR / "camA_main_road.mp4", frames(a, 1.0, 30))          # skip the black fade-in
-    write(config.VIDEO_DIR / "camB_second_view.mp4", frames(a, 2.5, 30), second_view)
-    write(config.VIDEO_DIR / "camC_other_road.mp4", frames(b, 1.0, 30))
+
+    writers, n = {}, 0
+    for f, fps in frames(a, 1.0, 45):                          # skip the black fade-in; whole clip
+        for name, (x0, x1, kind) in ZONES.items():
+            crop = look(f[Y0:Y1, x0:x1], kind)
+            if name not in writers:
+                writers[name] = cv2.VideoWriter(str(config.VIDEO_DIR / f"{name}.mp4"),
+                                                cv2.VideoWriter_fourcc(*"mp4v"), fps, crop.shape[1::-1])
+            writers[name].write(crop)
+        n += 1
+    for name, w in writers.items():
+        w.release()
+        print(f"wrote {name}.mp4: {n} frames")
+
+    vw, n = None, 0
+    for f, fps in frames(b, 1.0, 30):
+        f = cv2.resize(f, (1280, 720))
+        vw = vw or cv2.VideoWriter(str(config.VIDEO_DIR / "camD_other_road.mp4"),
+                                   cv2.VideoWriter_fourcc(*"mp4v"), fps, (1280, 720))
+        vw.write(f)
+        n += 1
+    vw.release()
+    print(f"wrote camD_other_road.mp4: {n} frames")
 
 
 if __name__ == "__main__":

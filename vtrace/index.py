@@ -1,4 +1,5 @@
 """Searchable vehicle index: one entry per tracklet with all of its descriptors."""
+import json
 import shutil
 from pathlib import Path
 
@@ -45,6 +46,23 @@ class VehicleIndex:
         """Identifies a video file + processing settings, so unchanged videos are not reprocessed."""
         st = Path(video_path).stat()
         return (st.st_size, int(st.st_mtime), stride or config.FRAME_STRIDE, bool(read_plate))
+
+    @staticmethod
+    def bundled_videos():
+        """Demo cameras available pre-processed in demo_bundle/ (empty if there is no bundle)."""
+        manifest = config.DEMO_BUNDLE / "manifest.json"
+        return set(json.loads(manifest.read_text())) if manifest.exists() else set()
+
+    def import_bundle(self, names):
+        """Add pre-processed demo cameras from demo_bundle/ (used where the videos are not available or would be
+        slow to process, e.g. on Streamlit Community Cloud). Bundle paths are relative to the project root."""
+        data = joblib.load(config.DEMO_BUNDLE / "tracklets.joblib")
+        for name in names:
+            self.tracklets = [t for t in self.tracklets if t["video"] != name]
+            self.tracklets += [t | {"crop_paths": [str(config.ROOT / p) for p in t["crop_paths"]],
+                                    "frame_path": str(config.ROOT / t["frame_path"])}
+                               for t in data if t["video"] == name]
+            self.processed[name] = "demo bundle"
 
     def is_processed(self, video_path, stride=None, read_plate=True):
         name, sig = Path(video_path).stem, self.signature(video_path, stride, read_plate)

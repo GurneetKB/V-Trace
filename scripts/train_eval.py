@@ -37,7 +37,7 @@ from tqdm import tqdm
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from vtrace import config, plate as plate_utils, reid, search, veri
+from vtrace import metric, config, plate as plate_utils, reid, search, veri
 from vtrace.som import VehicleSOM
 
 LEVELS = ["clear", "partial", "blurred", "hidden"]
@@ -172,7 +172,7 @@ def reid_experiment(test, rf, max_queries, rng, results):
         base.append((q, gallery, [reid.pair_features(q, g) for g in gallery],
                      np.array([g["vehicle_id"] == q["vehicle_id"] for g in gallery])))
 
-    methods = ["appearance only", "plate_sim", "weighted fusion", "random forest"]
+    methods = ["appearance only", "learned metric", "plate_sim", "weighted fusion", "random forest"]
     ablation = [k for k in config.PAIR_FEATURES if k not in ("plate_avail",)]
     out = {}
     for level in LEVELS:
@@ -264,7 +264,7 @@ def description_experiment(test, results):
 
 def plots(results, rf):
     reid_res = results["reid"]
-    methods = ["appearance only", "plate_sim", "weighted fusion", "random forest"]
+    methods = ["appearance only", "learned metric", "plate_sim", "weighted fusion", "random forest"]
     labels = {"plate_sim": "plate only"}
     fig, ax = plt.subplots(figsize=(7, 4))
     for m in methods:
@@ -319,6 +319,10 @@ def main():
 
     results = {"setup": vars(args) | {"n_train_tracklets": len(train), "n_test_tracklets": len(test)}}
     attribute_experiment(train, test, results)
+    metric_model = metric.fit(train)                  # supervised metric learning on training identities
+    joblib.dump(metric_model, config.METRIC_PATH)
+    metric.embed(metric_model, test)
+    metric.out_of_fold(train)                         # leak-free projections for the RF's training pairs
 
     set_plates(train, lambda r: r.choice(LEVELS), seed=args.seed)  # train RF on mixed plate visibility
     X, y = build_training_pairs(train, args.neg_ratio, args.max_pos, rng)

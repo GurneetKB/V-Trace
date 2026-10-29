@@ -12,7 +12,8 @@ VERI_DIR = Path(os.environ["VTRACE_VERI_DIR"]) if os.environ.get("VTRACE_VERI_DI
     DATA_DIR / "VeRi" if (DATA_DIR / "VeRi").exists() else Path.home() / "VeRi")
 CACHE_DIR = DATA_DIR / "cache"           # cached benchmark features
 MODELS_DIR = ROOT / "models"             # trained Random Forest + attribute probes
-RESULTS_DIR = ROOT / "results"           # evaluation metrics and plots
+RESULTS_DIR = ROOT / "results"
+DEMO_BUNDLE = ROOT / "demo_bundle"              # pre-processed demo cameras (scripts/export_demo_bundle.py)           # evaluation metrics and plots
 
 for _d in (VIDEO_DIR, INDEX_DIR, CACHE_DIR, MODELS_DIR, RESULTS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
@@ -47,6 +48,7 @@ CUES = {
 
 # ---------------- Matching / fusion ----------------
 PAIR_FEATURES = [
+    "metric_cos",     # learned-metric (LDA on ResNet + CLIP, trained on VeRi identities) cosine similarity
     "app_cos",        # CNN (ResNet-50) appearance embedding cosine similarity
     "clip_cos",       # CLIP image embedding cosine similarity
     "color_hist",     # HSV colour-histogram intersection
@@ -61,7 +63,7 @@ PAIR_FEATURES = [
 
 # Transparent weighted-fusion baseline (plate weight only used when both plates read)
 FUSION_WEIGHTS = {
-    "app_cos": 0.35, "clip_cos": 0.20, "color_hist": 0.10,
+    "metric_cos": 0.30, "app_cos": 0.10, "clip_cos": 0.10, "color_hist": 0.10,
     "color_agree": 0.10, "type_agree": 0.10, "cue_sim": 0.05, "plate_sim": 0.30,
 }
 
@@ -71,3 +73,4 @@ UNREAD_PLATE_SCORE = 0.3   # neutral score for tracklets whose plate could not b
 
 RF_PATH = MODELS_DIR / "rf_matcher.joblib"
 ATTR_PROBE_PATH = MODELS_DIR / "attr_probe.joblib"
+METRIC_PATH = MODELS_DIR / "metric_lda.joblib"

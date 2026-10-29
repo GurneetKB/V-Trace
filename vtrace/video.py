@@ -78,8 +78,9 @@ def process_video(video_path, camera=None, progress=None, stride=None):
             clss = res.boxes.cls.int().cpu().tolist()
             confs = res.boxes.conf.cpu().tolist()
             for box, tid, cls, conf in zip(boxes, ids, clss, confs):
-                tr = tracks.setdefault(tid, {"frames": [], "cls": Counter(), "cands": [], "best": None})
+                tr = tracks.setdefault(tid, {"frames": [], "boxes": [], "cls": Counter(), "cands": [], "best": None})
                 tr["frames"].append(idx)
+                tr["boxes"].append([int(v) for v in box])
                 tr["cls"][config.VEHICLE_CLASSES.get(cls, "car")] += 1
                 x1, y1, x2, y2 = [int(v) for v in box]
                 x1, y1 = max(0, x1), max(0, y1)
@@ -131,6 +132,8 @@ def process_video(video_path, camera=None, progress=None, stride=None):
             "start_frame": tr["frames"][0], "end_frame": tr["frames"][-1],
             "start_t": tr["frames"][0] / fps, "end_t": tr["frames"][-1] / fps,
             "best_t": best_idx / fps, "fps": fps,
+            "best_box": (x1, y1, x2, y2), "boxes": tr["boxes"],   # boxes[i] is at frame frames[i]
+            "frames": tr["frames"],
             "crop_paths": crop_paths, "frame_path": str(frame_path),
         })
         crops[uid] = [c[2] for c in chosen]
