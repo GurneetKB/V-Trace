@@ -89,37 +89,40 @@ On the command line, the equivalent is `python scripts/build_index.py --stride 5
 The repo is ready for https://share.streamlit.io. It includes `requirements.txt` (CPU-only PyTorch), `packages.txt`
 (the system libraries OpenCV needs) and `.streamlit/config.toml`.
 
-1. Push the repo to GitHub.
-2. On share.streamlit.io, click **Create app** and pick the repo, branch `main` and main file `app.py`.
+1. Push the repo to GitHub. The trained models (`models/`) and the pre-processed demo cameras (`demo_bundle/`) are
+   committed, so the hosted **▶ Quick demo** loads instantly without processing any video.
+2. On share.streamlit.io, sign in **with the GitHub account that owns the repo**, click **Create app** →
+   *Deploy a public app from GitHub*, and pick the repo `GurneetKB/V-Trace`, branch `main`, main file `app.py`.
+   The repo is private, so Streamlit asks once for permission to read private repositories; accept it, or the repo
+   won't appear in the list.
 3. Under **Advanced settings**, choose Python **3.11**. If the app runs out of memory, add `VTRACE_OCR = "0"`
    under Secrets/Environment to turn EasyOCR off.
 4. Under **Secrets**, paste the `[admin]` block from `.streamlit/secrets.toml.example` with your own username and
    password. Without it, the deployed app stays locked.
 5. Click **Deploy**. The first boot installs PyTorch and downloads the model weights, which takes a few minutes.
 
-Community Cloud runs on a small CPU, so keep demo clips short (10–30 s). Processing locally and presenting from
-`localhost` is the most reliable option for a live demo.
+Community Cloud runs on a small CPU, so keep uploaded clips short (10–30 s) and use the **Fast** preset. Presenting
+from `localhost` is the most reliable option for a live demo. After re-processing the demo cameras locally, refresh the
+bundle with `python scripts/export_demo_bundle.py`.
 
 **Quick smoke test without real footage:** in tab 1, click **"Generate two sample camera clips"**, or run `python scripts/make_sample_videos.py`, then process
 `sample_camA.mp4` and `sample_camB.mp4` in tab 1.
 
-**Real-footage demo:** follow [docs/DEMO_DATA.md](docs/DEMO_DATA.md) to download two CC-BY Ljubljana traffic
-clips, then run:
+**Real-footage demo (multi-camera path tracing):** follow [docs/DEMO_DATA.md](docs/DEMO_DATA.md) to download two
+CC-BY Ljubljana traffic clips, then build the four demo cameras (three along one street, so the same cars pass
+A → B → C, plus a distractor road):
 
 ```bash
 .venv\Scripts\python scripts/prepare_demo_clips.py
 ```
 
-```bash
-.venv\Scripts\python scripts/build_index.py data/videos/camA_main_road.mp4 data/videos/camB_second_view.mp4 data/videos/camC_other_road.mp4
-```
+In the app, tab 1 → **▶ Quick demo** processes them (or run `scripts/build_index.py` on the four `cam*.mp4` files).
+Step-by-step demo scenarios, with expected results, are in [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md). To measure
+tracking, Re-ID and path tracing on these cameras:
 
 ```bash
-.venv\Scripts\python scripts/demo_walkthrough.py --color white --cue "sticker / decal" --confirm-video camA_main_road
+.venv\Scripts\python scripts/demo_eval.py
 ```
-
-The last command saves a scripted Describe → Search → Confirm → Re-identify run to `results/demo/`, including
-the evidence images and a Markdown summary for the report.
 
 **Troubleshooting (Windows):** an error saying *"An Application Control policy has blocked this file"* comes from
 Windows Smart App Control. It is sometimes intermittent; run the command again. If it keeps happening for one
@@ -159,6 +162,8 @@ Without VeRi the app still runs. It uses CLIP zero-shot attributes and the weigh
 | 3 | Cross-camera Re-ID: each single cue vs weighted fusion vs Random Forest (ablation) | Rank-1, Rank-5, mAP |
 | 4 | Plate robustness: clear → partial → blurred → hidden | mAP per level |
 | 5 | SOM: cluster purity (ID/colour/type) and pre-filter recall vs candidate reduction | purity, recall, mAP |
+| 6 | Supervised metric learning (PCA + LDA on ResNet + CLIP, `vtrace/metric.py`) vs generic embeddings | Rank-1, mAP |
+| 7 | Demo cameras (`scripts/demo_eval.py`): tracking purity, Re-ID, route precision/recall, camera hit@k | pseudo ground truth |
 
 *Note:* VeRi-776 has no plate text, so every vehicle identity gets a synthetic plate string, which is then
 degraded per observation. This isolates the hypothesis that multi-evidence retrieval degrades more gracefully
