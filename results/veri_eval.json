@@ -1,0 +1,37 @@
+{
+ "queries": 1678,
+ "gallery": 11579,
+ "rank1": 96.96066746126341,
+ "rank5": 98.56972586412395,
+ "mAP": 81.63506369816477,
+ "same_vehicle_similarity_percentiles_10_50_90": [
+  0.391,
+  0.622,
+  0.807
+ ],
+ "different_vehicle_similarity_percentiles_50_99_99.9": [
+  0.02,
+  0.375,
+  0.582
+ ],
+ "threshold_0.35": {
+  "same_vehicle_kept_%": 93.6,
+  "different_vehicle_kept_%": 1.32
+ },
+ "threshold_0.4": {
+  "same_vehicle_kept_%": 89.1,
+  "different_vehicle_kept_%": 0.77
+ },
+ "threshold_0.45": {
+  "same_vehicle_kept_%": 82.7,
+  "different_vehicle_kept_%": 0.41
+ },
+ "threshold_0.5": {
+  "same_vehicle_kept_%": 74.8,
+  "different_vehicle_kept_%": 0.23
+ },
+ "threshold_0.55": {
+  "same_vehicle_kept_%": 65.4,
+  "different_vehicle_kept_%": 0.14
+ }
+}
