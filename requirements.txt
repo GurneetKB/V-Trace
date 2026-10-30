@@ -8,15 +8,12 @@ torchvision==0.20.1+cpu
 ultralytics>=8.3
 lap>=0.5          # linear assignment used by ByteTrack
 
-# Vision-language model (CLIP) for colour / type / distinctive-cue evidence
+# Vision-language model (CLIP), zero-shot colour / type / distinctive-feature scoring
+# (vehicle Re-ID: FastReID VeRi-776 weights, downloaded on first use by vtrace/fastreid.py)
 open_clip_torch>=2.24
 
 # Optional licence-plate OCR (set VTRACE_OCR=0 to switch it off, e.g. on low-memory hosting)
 easyocr>=1.7
-
-# Classical ML: Random Forest, linear probes, PCA; unsupervised SOM
-scikit-learn==1.9.1   # pinned: the trained models in models/ are scikit-learn pickles
-minisom>=2.3.2
 
 # App + utilities
 streamlit>=1.35
@@ -24,6 +21,5 @@ pyarrow==18.1.0  # Streamlit tables; newest pyarrow DLLs are blocked by Windows 
 opencv-python>=4.9
 numpy>=1.26
 pandas>=2.1
-matplotlib>=3.8
 joblib>=1.3
 tqdm>=4.66

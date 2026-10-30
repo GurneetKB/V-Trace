@@ -33,7 +33,6 @@ def main():
         n = index.add_video(v, fe, progress=lambda f: print(f"\r  {100 * f:5.1f}%", end=""),
                             stride=args.stride, read_plate=not args.no_ocr)
         print(f"\n  {n} vehicle tracklets")
-    index.fit_som()
     index.save()
     print(f"Index: {len(index)} tracklets from {len(index.videos())} videos -> {config.INDEX_DIR}")
     for t in index.tracklets:

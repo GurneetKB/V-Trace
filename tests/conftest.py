@@ -29,19 +29,18 @@ def make_tracklet():
         """Tracklets sharing `vehicle` get near-identical embeddings."""
         key = vehicle or uid
         if key not in bases:
-            bases[key] = (rng.normal(size=2048), rng.normal(size=512), rng.random(256))
-        app, clip, hist = bases[key]
-        hist = hist + noise * rng.random(256)
+            bases[key] = (rng.normal(size=2048), rng.normal(size=512))
+        emb, clip = bases[key]
         return {
             "uid": uid, "video": video, "camera": video, "track_id": 1, "n_obs": 20,
-            "app_emb": _unit(app + noise * rng.normal(size=2048)),
+            "start_t": 0.0, "end_t": 2.0, "best_t": 1.0,
+            "reid_emb": _unit(emb + noise * rng.normal(size=2048)),
             "clip_emb": _unit(clip + noise * rng.normal(size=512)),
             "color_probs": _onehot(len(config.COLORS), config.COLORS.index(color)),
             "type_probs": _onehot(len(config.TYPES), config.TYPES.index(vtype)),
             "cue_probs": np.full(len(config.CUES), 0.3),
-            "hsv_hist": (hist / hist.sum()).astype(np.float32),
             "plate": plate, "plate_conf": 0.9 if plate else 0.0,
-            "n_crops": config.CROPS_PER_TRACK, "consistency": 0.95,
+            "n_crops": config.CROPS_PER_TRACK,
         }
 
     return make

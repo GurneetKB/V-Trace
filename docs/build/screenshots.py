@@ -1,8 +1,8 @@
 """Capture app screenshots for the report and deck by driving headless Edge (Chrome DevTools protocol).
 
 Needs the app running (streamlit run app.py) and the demo cameras processed. Signs in with the account in
-.streamlit/secrets.toml, runs the one-click demo, searches for the demo vehicle chosen by scripts/demo_eval.py,
-confirms it and captures each step into docs/screenshots/.
+.streamlit/secrets.toml, describes the demo vehicle (docs/DEMO_GUIDE.md), selects it and captures each step into
+docs/screenshots/.
 
     python docs/build/screenshots.py [http://localhost:8501] [dark|light]
 """
@@ -25,9 +25,9 @@ THEME = sys.argv[2] if len(sys.argv) > 2 else "dark"
 OUT = ROOT / "docs" / "screenshots"
 EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 ADMIN = tomllib.loads((ROOT / ".streamlit" / "secrets.toml").read_text())["admin"]
-# Demo scenario (docs/DEMO_GUIDE.md): the red Citroen first seen in camA (track 481), then confirmed in camB and camC.
-QUERY_TIME, HOP_TIMES = "00:40.80", ["00:42.00", "00:43.56"]          # camA #481 -> camB #156 -> camC #294
-DEMO = {"colour": "red", "type": "sedan"}
+# Demo scenario (docs/DEMO_GUIDE.md): the red Citroen seen in camA, camB and camC.
+QUERY_TIME = "00:42.00"                                   # camB_centre#156, the red Citroen
+DEMO = {"colour": "red", "type": "suv"}
 PORT = 9350
 
 
@@ -127,38 +127,33 @@ async def run(ws_url):
             await p.type(ADMIN["password"])
             await p.click(by_text("button", "Sign in"))
             try:
-                await p.wait_text("Find the vehicle", 25)         # the demo cameras load automatically
+                await p.wait_text("Describe the vehicle", 25)         # the demo cameras load automatically
                 break
             except TimeoutError:
                 await p.cmd("Page.reload")
                 await p.wait_text("Sign in")
 
-        # 1 find the vehicle: describe it
+        # 1 describe -> 2 ranked matches
         await p.click("document.querySelector('input[aria-label^=\"Colour\"]')")
         await p.click(by_text("[role=option]", DEMO["colour"]))
         await p.click("document.querySelector('input[aria-label^=\"Type\"]')")
         await p.click(by_text("[role=option]", DEMO["type"]))
         await p.click(by_text("button", "Search"))
         await p.wait_text("#1 ·")
-        await p.shot("search.png")
+        await p.shot("search.png", scroll_to=by_text("h3", "Best matches"))
+
+        # 3 select -> where it was seen
         await p.click(button_in_column("Select", QUERY_TIME))
+        await p.wait_text("Where this vehicle was seen")
+        await p.shot("seen.png", scroll_to=by_text("h3", "Where this vehicle"))
+        await p.js("window.scrollBy(0, 600)")
+        await asyncio.sleep(1)
+        await p.shot("seen_more.png")
 
-        # 2/3 route + where else, confirming each camera
-        await p.wait_text("Where else was it seen")
-        await p.shot("path_suggested.png")
-        for t in HOP_TIMES:
-            await p.click(button_in_column("Same vehicle", t))
-            await p.wait_text(f"confirmed at {t}")              # wait for the page to update before the next click
-        await p.shot("path.png", scroll_to=by_text("h3", "route across"))
-        await p.shot("reid_candidates.png", scroll_to=by_text("h3", "Where else"))
-
-        # analysis page
-        await p.click("[...document.querySelectorAll('a')].find(a => a.innerText.includes('Analysis'))")
-        await p.wait_text("Benchmark results")
+        # how it works page
+        await p.click("[...document.querySelectorAll('a')].find(a => a.innerText.includes('How it works'))")
+        await p.wait_text("Re-ID model on the VeRi-776 benchmark")
         await p.shot("evaluation.png")
-        await p.click(by_text("[role=tab]", "Vehicle map"))
-        await asyncio.sleep(3)
-        await p.shot("som.png")
 
 
 def main():

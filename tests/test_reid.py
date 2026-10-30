@@ -1,62 +1,5 @@
-import numpy as np
-import pytest
-
-from vtrace import config, reid
+from vtrace import reid
 from vtrace.index import VehicleIndex
-
-
-@pytest.fixture
-def scene(make_tracklet):
-    """Camera A sees vehicle X; camera B sees X again plus two distractors."""
-    return VehicleIndex([
-        make_tracklet("A#1", "A", vehicle="X", plate="SGX1234A"),
-        make_tracklet("A#2", "A", vehicle="X2"),
-        make_tracklet("B#1", "B", vehicle="Y", color="white", vtype="suv"),
-        make_tracklet("B#2", "B", vehicle="X", plate="SGX1234A"),
-        make_tracklet("B#3", "B", vehicle="Z", color="black", vtype="sedan"),
-    ])
-
-
-def test_pair_features_match_config(scene):
-    f = reid.pair_features(scene.tracklets[0], scene.tracklets[3])
-    assert list(f) == config.PAIR_FEATURES
-    assert f["plate_avail"] == 1.0 and f["plate_sim"] == 1.0
-    assert f["app_cos"] > 0.9
-
-
-def test_weighted_fusion_ignores_plate_when_unreadable(scene):
-    f = reid.pair_features(scene.tracklets[0], scene.tracklets[2])   # B#1 has no plate
-    assert f["plate_avail"] == 0.0
-    w = {k: v for k, v in config.FUSION_WEIGHTS.items() if k != "plate_sim"}
-    expected = sum(w[k] * f[k] for k in w) / sum(w.values())
-    assert reid.weighted_fusion(f) == pytest.approx(expected)
-
-
-@pytest.mark.parametrize("method", ["appearance only", "weighted fusion", "random forest"])
-def test_reid_finds_true_match_in_other_video(scene, method):
-    hits = reid.reid_search(scene, scene.tracklets[0], method=method, rf=None)
-    assert hits[0][1]["uid"] == "B#2"
-    assert all(h[1]["video"] != "A" for h in hits)                  # other videos only
-
-
-def test_include_same_video(scene):
-    hits = reid.reid_search(scene, scene.tracklets[0], include_same_video=True)
-    assert "A#2" in {h[1]["uid"] for h in hits}
-
-
-def test_random_forest_learns_same_vs_different(make_tracklet):
-    pos = [reid.pair_features(make_tracklet(f"p{i}a", "A", vehicle=f"v{i}"),
-                              make_tracklet(f"p{i}b", "B", vehicle=f"v{i}")) for i in range(30)]
-    neg = [reid.pair_features(make_tracklet(f"n{i}a", "A"), make_tracklet(f"n{i}b", "B")) for i in range(30)]
-    X, y = reid.to_matrix(pos + neg), np.array([1] * 30 + [0] * 30)
-    rf = reid.train_rf(X, y)
-    scores = reid.score_pairs(pos[:5] + neg[:5], "random forest", rf)
-    assert scores[:5].min() > scores[5:].max()
-
-
-def test_single_cue_ablation(scene):
-    feats = [reid.pair_features(scene.tracklets[0], t) for t in scene.tracklets[2:]]
-    assert np.allclose(reid.score_pairs(feats, "app_cos"), [f["app_cos"] for f in feats])
 
 
 def _timed(t, start, end):
@@ -64,23 +7,48 @@ def _timed(t, start, end):
     return t
 
 
-def test_trace_path_follows_vehicle_across_cameras(make_tracklet):
-    from vtrace.index import VehicleIndex
-    idx = VehicleIndex()
-    idx.tracklets = [_timed(make_tracklet("A#1", "camA", "car1"), 0, 2),
-                     _timed(make_tracklet("A#2", "camA", "car2", color="red", vtype="sedan"), 0, 2),
-                     _timed(make_tracklet("C#1", "camC", "car1"), 6, 8),
-                     _timed(make_tracklet("B#1", "camB", "car1"), 3, 5),
-                     _timed(make_tracklet("B#2", "camB", "car2", color="red", vtype="sedan"), 3, 5),
-                     _timed(make_tracklet("D#9", "camD", "other", color="black", vtype="van"), 3, 5)]
-    path = reid.trace_path(idx, idx.tracklets[0], "weighted fusion", min_score=0.7)
-    assert [t["uid"] for _, t in path] == ["A#1", "B#1", "C#1"]      # time order, one per camera, no camD
+def scene(make_tracklet):
+    """car1 passes camA, camB and camC; car2 only camA and camB; camD sees a different vehicle much later."""
+    return VehicleIndex([_timed(make_tracklet("A#1", "camA", "car1"), 0, 2),
+                         _timed(make_tracklet("A#2", "camA", "car2", color="red", vtype="sedan"), 0, 2),
+                         _timed(make_tracklet("C#1", "camC", "car1"), 6, 8),
+                         _timed(make_tracklet("B#1", "camB", "car1"), 3, 5),
+                         _timed(make_tracklet("B#2", "camB", "car2", color="red", vtype="sedan"), 3, 5),
+                         _timed(make_tracklet("D#9", "camD", "other", color="black", vtype="van"), 30, 35)])
 
 
-def test_trace_path_time_window(make_tracklet):
-    from vtrace.index import VehicleIndex
-    idx = VehicleIndex()
-    idx.tracklets = [_timed(make_tracklet("A#1", "camA", "car1"), 0, 2),
-                     _timed(make_tracklet("B#1", "camB", "car1"), 100, 102)]
-    assert len(reid.trace_path(idx, idx.tracklets[0], "weighted fusion", 0.7, max_gap_s=15)) == 1
-    assert len(reid.trace_path(idx, idx.tracklets[0], "weighted fusion", 0.7, max_gap_s=None)) == 2
+def test_rank_puts_same_vehicle_first_and_skips_own_camera(make_tracklet):
+    idx = scene(make_tracklet)
+    hits = reid.rank(idx, idx.get("A#1"))
+    assert {t["uid"] for _, t in hits[:2]} == {"B#1", "C#1"}
+    assert all(t["video"] != "camA" for _, t in hits)
+
+
+def test_where_seen_lists_every_camera_with_the_vehicle(make_tracklet):
+    idx = scene(make_tracklet)
+    seen = reid.where_seen(idx, idx.get("A#1"), threshold=0.5)
+    assert set(seen) == {"camA", "camB", "camC", "camD"}
+    assert {v: s["match"] and s["match"][1]["uid"] for v, s in seen.items()} == \
+        {"camA": "A#1", "camB": "B#1", "camC": "C#1", "camD": None}
+    assert seen["camD"]["candidates"][0][1]["uid"] == "D#9"         # closest vehicle shown when there is no match
+    assert [t["uid"] for t in reid.route(seen)] == ["A#1", "B#1", "C#1"]
+
+
+def test_ambiguous_camera_is_left_to_the_user(make_tracklet):
+    idx = scene(make_tracklet)
+    idx.tracklets.append(_timed(make_tracklet("B#3", "camB", "car1"), 3, 5))   # a second, equally similar sighting
+    seen = reid.where_seen(idx, idx.get("A#1"), threshold=0.5, margin=0.08)
+    assert seen["camB"]["match"] is None and seen["camC"]["match"] is not None
+
+
+def test_time_window(make_tracklet):
+    idx = scene(make_tracklet)
+    seen = reid.where_seen(idx, idx.get("A#1"), threshold=0.5, max_gap_s=3)
+    assert seen["camB"]["match"] is not None and seen["camC"]["match"] is None     # camC is 4 s later
+    assert seen["camD"]["candidates"] == []
+
+
+def test_threshold(make_tracklet):
+    idx = scene(make_tracklet)
+    seen = reid.where_seen(idx, idx.get("A#1"), threshold=1.01)
+    assert [v for v, s in seen.items() if s["match"]] == ["camA"]

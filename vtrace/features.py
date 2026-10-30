@@ -1,21 +1,17 @@
-"""Vehicle descriptors computed for every tracklet.
+"""Vehicle descriptors computed for every tracklet - all from pretrained models, nothing trained by us.
 
-* CNN appearance embedding  - pretrained ResNet-50 (ImageNet), averaged over crops
-* CLIP image embedding      - used for colour / type / distinctive-cue evidence
-* Colour + type probabilities - CLIP zero-shot, or a supervised linear probe trained
-                                on VeRi-776 labels (scripts/train_eval.py) when available
-* HSV colour histogram      - hand-crafted colour descriptor
-* Licence plate text        - EasyOCR, optional; only kept when confidently read
+* Re-ID embedding        - FastReID SBS(R50-ibn) trained on VeRi-776 (vtrace/fastreid.py), averaged over crops
+* Colour / type / cues   - CLIP ViT-B/32 zero-shot ("a photo of a red car", "... with a rear spoiler", ...)
+* Licence plate text     - EasyOCR, optional; only kept when confidently read
 """
 import warnings
 
 import cv2
-import joblib
 import numpy as np
 import torch
 from PIL import Image
 
-from . import config, plate as plate_utils
+from . import config, fastreid, plate as plate_utils
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -29,33 +25,14 @@ def _softmax(x):
     return e / e.sum(axis=-1, keepdims=True)
 
 
-def hsv_histogram(crop_bgr):
-    """16x4x4 HSV histogram of the central region of the crop (less background)."""
-    h, w = crop_bgr.shape[:2]
-    centre = crop_bgr[int(0.15 * h):int(0.85 * h), int(0.15 * w):int(0.85 * w)]
-    hsv = cv2.cvtColor(centre, cv2.COLOR_BGR2HSV)
-    hist = cv2.calcHist([hsv], [0, 1, 2], None, [16, 4, 4], [0, 180, 0, 256, 0, 256]).flatten()
-    return hist / (hist.sum() + 1e-12)
-
-
 class FeatureExtractor:
     def __init__(self, device=None, use_ocr=config.ENABLE_OCR):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self._load_cnn()
+        self.reid = fastreid.load(self.device)
         self._load_clip()
         self.ocr = self._load_ocr() if use_ocr else None
-        self.probe = joblib.load(config.ATTR_PROBE_PATH) if config.ATTR_PROBE_PATH.exists() else None
 
     # ---------------- model loading ----------------
-    def _load_cnn(self):
-        import torchvision
-        from torchvision.models import ResNet50_Weights
-        weights = ResNet50_Weights.IMAGENET1K_V2
-        self.cnn = torchvision.models.resnet50(weights=weights)
-        self.cnn.fc = torch.nn.Identity()           # 2048-d global appearance feature
-        self.cnn.eval().to(self.device)
-        self.cnn_tf = weights.transforms()
-
     def _load_clip(self):
         import open_clip
         name, pretrained = config.CLIP_MODEL
@@ -83,28 +60,17 @@ class FeatureExtractor:
         return _l2(self.clip.encode_text(tokens).float().cpu().numpy())
 
     @torch.no_grad()
-    def cnn_embed(self, crops_bgr):
-        imgs = [self.cnn_tf(Image.fromarray(cv2.cvtColor(c, cv2.COLOR_BGR2RGB))) for c in crops_bgr]
-        out = self.cnn(torch.stack(imgs).to(self.device)).float().cpu().numpy()
-        return _l2(out)
-
-    @torch.no_grad()
     def clip_embed(self, crops_bgr):
         imgs = [self.clip_tf(Image.fromarray(cv2.cvtColor(c, cv2.COLOR_BGR2RGB))) for c in crops_bgr]
         out = self.clip.encode_image(torch.stack(imgs).to(self.device)).float().cpu().numpy()
         return _l2(out)
 
-    # ---------------- attribute / cue scoring ----------------
+    def reid_embed(self, crops_bgr):
+        return fastreid.embed(self.reid, crops_bgr, self.device)
+
+    # ---------------- attribute / cue scoring (CLIP zero-shot) ----------------
     def attribute_probs(self, clip_emb):
         """Colour and type probability vectors (vocab order from config)."""
-        if self.probe is not None:
-            out = []
-            for key, n in (("color", len(config.COLORS)), ("type", len(config.TYPES))):
-                clf = self.probe[key]
-                p = np.zeros(n)
-                p[clf.classes_] = clf.predict_proba(clip_emb[None])[0]
-                out.append(p)
-            return out
         return (_softmax(100 * self.color_txt @ clip_emb),
                 _softmax(100 * self.type_txt @ clip_emb))
 
@@ -134,20 +100,16 @@ class FeatureExtractor:
 
     # ---------------- full descriptor ----------------
     def describe(self, crops_bgr, read_plate=True):
-        app = self.cnn_embed(crops_bgr)
-        clip = self.clip_embed(crops_bgr)
-        app_mean, clip_mean = _l2(app.mean(0)), _l2(clip.mean(0))
+        clip_mean = _l2(self.clip_embed(crops_bgr).mean(0))
         color_p, type_p = self.attribute_probs(clip_mean)
         plate, plate_conf = self.read_plate(crops_bgr) if read_plate else ("", 0.0)
         return {
-            "app_emb": app_mean.astype(np.float32),
+            "reid_emb": _l2(self.reid_embed(crops_bgr).mean(0)).astype(np.float32),
             "clip_emb": clip_mean.astype(np.float32),
             "color_probs": color_p,
             "type_probs": type_p,
             "cue_probs": self.cue_probs(clip_mean),
-            "hsv_hist": np.mean([hsv_histogram(c) for c in crops_bgr], axis=0).astype(np.float32),
             "plate": plate,
             "plate_conf": plate_conf,
             "n_crops": len(crops_bgr),
-            "consistency": float((app @ app_mean).mean()),  # how stable the track's appearance is
         }

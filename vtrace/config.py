@@ -11,9 +11,9 @@ INDEX_DIR = DATA_DIR / "index"           # generated vehicle index (crops, frame
 VERI_DIR = Path(os.environ["VTRACE_VERI_DIR"]) if os.environ.get("VTRACE_VERI_DIR") else (
     DATA_DIR / "VeRi" if (DATA_DIR / "VeRi").exists() else Path.home() / "VeRi")
 CACHE_DIR = DATA_DIR / "cache"           # cached benchmark features
-MODELS_DIR = ROOT / "models"             # trained Random Forest + attribute probes
+MODELS_DIR = ROOT / "models"             # pretrained Re-ID weights (git-ignored, downloaded on first use)
 RESULTS_DIR = ROOT / "results"
-DEMO_BUNDLE = ROOT / "demo_bundle"              # pre-processed demo cameras (scripts/export_demo_bundle.py)           # evaluation metrics and plots
+DEMO_BUNDLE = ROOT / "demo_bundle"       # pre-processed demo cameras (scripts/export_demo_bundle.py)
 
 for _d in (VIDEO_DIR, INDEX_DIR, CACHE_DIR, MODELS_DIR, RESULTS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
@@ -34,7 +34,7 @@ ENABLE_OCR = os.environ.get("VTRACE_OCR", "1") != "0"   # licence-plate OCR (Eas
 OCR_MIN_WIDTH = 160                      # px; plates on smaller vehicle crops are not legible, skip OCR
 OCR_MAX_CROPS = 2                        # OCR only the largest crops of each tracklet
 
-# Vocabularies follow the VeRi-776 labels so the benchmark can evaluate them.
+# Vocabularies follow the VeRi-776 colour / type labels.
 COLORS = ["yellow", "orange", "green", "gray", "red", "blue", "white", "golden", "brown", "black"]
 TYPES = ["sedan", "suv", "van", "hatchback", "mpv", "pickup", "bus", "truck", "estate"]
 # Controlled vocabulary of optional distinctive cues (scored with CLIP text-image similarity)
@@ -46,31 +46,13 @@ CUES = {
     "cargo on roof": "a photo of a vehicle carrying cargo on its roof",
 }
 
-# ---------------- Matching / fusion ----------------
-PAIR_FEATURES = [
-    "metric_cos",     # learned-metric (LDA on ResNet + CLIP, trained on VeRi identities) cosine similarity
-    "app_cos",        # CNN (ResNet-50) appearance embedding cosine similarity
-    "clip_cos",       # CLIP image embedding cosine similarity
-    "color_hist",     # HSV colour-histogram intersection
-    "color_agree",    # probability both tracklets have the same colour
-    "type_agree",     # probability both tracklets have the same type
-    "plate_sim",      # plate string similarity (0 if either plate unreadable)
-    "plate_avail",    # 1 if both plates were read
-    "cue_sim",        # agreement of distinctive-cue scores
-    "track_quality",  # min #crops of the two tracklets / CROPS_PER_TRACK
-    "track_consist",  # min intra-tracklet appearance consistency
-]
-
-# Transparent weighted-fusion baseline (plate weight only used when both plates read)
-FUSION_WEIGHTS = {
-    "metric_cos": 0.30, "app_cos": 0.10, "clip_cos": 0.10, "color_hist": 0.10,
-    "color_agree": 0.10, "type_agree": 0.10, "cue_sim": 0.05, "plate_sim": 0.30,
-}
+# ---------------- Cross-camera Re-ID (pretrained FastReID, VeRi-776) ----------------
+MATCH_THRESHOLD = 0.40     # min cosine similarity of Re-ID embeddings for "same vehicle" (VeRi-776: scripts/eval_veri.py)
+MATCH_MARGIN = 0.08        # the best sighting in a camera must beat the second best by this much (ratio test)
+MAX_GAP_S = 10             # when videos are recorded at the same time: max seconds between two sightings
 
 # Stage-1 (description search) field weights; missing fields are simply skipped
 SEARCH_WEIGHTS = {"color": 0.30, "type": 0.25, "plate": 0.35, "cues": 0.10, "text": 0.10}
 UNREAD_PLATE_SCORE = 0.3   # neutral score for tracklets whose plate could not be read
 
-RF_PATH = MODELS_DIR / "rf_matcher.joblib"
-ATTR_PROBE_PATH = MODELS_DIR / "attr_probe.joblib"
-METRIC_PATH = MODELS_DIR / "metric_lda.joblib"
+REID_WEIGHTS = MODELS_DIR / "veri_sbs_R50-ibn.pth"   # FastReID VeRi-776 checkpoint (downloaded on first use)

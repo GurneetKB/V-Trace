@@ -19,10 +19,10 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "V-Trace: train + evaluate on VeRi-776",
+      "name": "V-Trace: evaluate the Re-ID model on VeRi-776",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/scripts/train_eval.py",
+      "program": "${workspaceFolder}/scripts/eval_veri.py",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
     },

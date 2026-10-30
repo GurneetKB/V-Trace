@@ -11,3 +11,4 @@ data/VeRi/
 submission/
 deliverables/*.mp4
 docs/build/_*
+*.pth
