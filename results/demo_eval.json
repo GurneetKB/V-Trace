@@ -19,15 +19,20 @@
   "mAP": 38.04976399361768,
   "threshold": 0.4,
   "margin": 0.08,
-  "real_time_window": {
-   "camera_precision_%": 80.64516129032258,
-   "camera_recall_%": 32.05128205128205,
-   "queries_wrongly_seen_in_camD_%": 0.0
+  "threshold_only": {
+   "camera_precision_%": 25.954198473282442,
+   "camera_recall_%": 43.58974358974359,
+   "queries_wrongly_seen_in_camD_%": 72.72727272727273
   },
   "no_time_window": {
    "camera_precision_%": 53.125,
    "camera_recall_%": 21.794871794871796,
    "queries_wrongly_seen_in_camD_%": 16.363636363636363
+  },
+  "real_time_window": {
+   "camera_precision_%": 80.64516129032258,
+   "camera_recall_%": 32.05128205128205,
+   "queries_wrongly_seen_in_camD_%": 0.0
   }
  },
  "demo_vehicles": [

@@ -50,7 +50,7 @@ Open http://localhost:8501 and sign in. The app opens in dark mode (⋮ → Sett
 
 1. **Videos (sidebar).** *Demo videos* are already processed: four cameras, three along one street (so the same
    cars pass A → B → C) and one on another road. *Upload new videos* takes your own short clips; **Process videos**
-   runs detection, tracking and description (*Fast processing* = every 5th frame, no plate OCR). For each upload
+   runs detection, tracking and description (*Fast processing* in Settings = every 5th frame, no plate OCR). For each upload
    enter the camera's **location** and **recording start** (date + time): a sighting's real-world time = recording
    start + its position in the video, so cameras can be seconds, minutes or hours apart.
 2. **Describe the vehicle.** Colour, type, plate (`?` = unknown character), distinctive features, free text. Any
@@ -61,8 +61,12 @@ Open http://localhost:8501 and sign in. The app opens in dark mode (⋮ → Sett
    confident match show the closest vehicles. The Re-ID threshold and the real-world time limit are under *Settings*.
 
 The **Cameras** page lists and edits every camera's location and recording start. The demo videos have no such
-metadata, so their details are curated (`vtrace/cameras.py`): camA–camC on one street with the same clock, camD on
-another road 2.5 minutes later.
+metadata, so their details are curated and placed in Singapore (`vtrace/cameras.py`): camA–camC on Orchard Road around
+the Scotts Road junction with the same clock, camD on Bukit Timah Road 2.5 minutes later.
+
+**Test videos for uploads.** `test_videos/` holds seven 20–22 s clips (two sets of three Orchard Road cameras and a
+Bukit Timah Road camera) with their camera details built in and the results to expect (`test_videos/README.md`).
+Rebuild them with `python scripts/make_test_videos.py`.
 
 The **How it works** page lists the models and the benchmark numbers.
 

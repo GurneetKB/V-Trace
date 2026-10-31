@@ -24,8 +24,8 @@ different road whose vehicles never appear in A–C.
 
 **Real-world time and location.** Every camera has a location and a recording start (**Cameras** page); a sighting's
 real-world time = recording start + its position in the video. The demo videos carry no such metadata, so their details
-are curated: camA–camC on Slovenska cesta, Ljubljana, all starting **Wed 28 Oct 2026, 08:15:00** (same clock), and camD
-on Celovška cesta, starting **08:17:30** (2.5 min later).
+are curated and placed in Singapore: camA–camC on Orchard Road around the Scotts Road junction, all starting **Wed 28 Oct 2026, 08:15:00** (same clock), and camD
+on Bukit Timah Road near Newton Circus, starting **08:17:30** (2.5 min later).
 
 The Search page has three steps: **1 Describe the vehicle**, **2 Best matches**, **3 Where this vehicle was seen**.
 
@@ -52,12 +52,14 @@ The Search page has three steps: **1 Describe the vehicle**, **2 Best matches**,
   re-ordered in real-world time (camC → camA → camB). camD (recorded from 08:17:30) stays out. Set camC back to
   08:15:00 afterwards.
 
-**Scenario D – upload videos**
-- Sidebar → **Upload new videos**, add two or three short clips (10–30 s). For each clip enter its **location**,
-  **recording date** and **start time** (latitude/longitude optional), keep **Fast processing** on, click
-  **Process videos**. Each clip becomes one camera; describe and select a vehicle as above. For uploads the real-world
-  time limit is off until you turn it on (Settings), in case the clocks are not set; details can be edited later on the
-  **Cameras** page.
+**Scenario D – upload videos (test pack)**
+- Sidebar → **Upload new videos**, add the three `set1_orchard_*.mp4` files from `test_videos/` (optionally also
+  `set3_bukit_timah.mp4`) and click **Process videos** (about 20–25 s per clip on a laptop). The location and start time
+  fill in automatically for these files, and the real-world time limit is switched on.
+- Describe Colour **gray**, Type **suv**, select **#1** (west camera, 17:45:04.0): the route shows the Scotts Road
+  junction 3.2 s later. More scenarios with expected results are in `test_videos/README.md`.
+- For your own clips, open each file's *location & start time* box and enter them before processing; for uploads with
+  unknown clocks the real-world time limit stays off (Settings). Details can be edited later on the **Cameras** page.
 
 **Talking points while it runs**
 - Every model is pretrained and used as published: YOLO11 + ByteTrack (sightings), CLIP zero-shot (description),
@@ -79,7 +81,7 @@ The Search page has three steps: **1 Describe the vehicle**, **2 Best matches**,
 | Select different vehicles from the results | Search 3 | per-camera sightings, or the closest candidates when there is no confident match |
 | Change the threshold, the *Max time between cameras* or turn off *Limit by real-world time* | sidebar → Settings | stricter / looser matching; the real-world time window |
 | Edit a camera's location or recording start | Cameras page | real-world times and the route update |
-| *Upload new videos* | sidebar | the full pipeline on new footage |
+| *Upload new videos* with a set from `test_videos/` (see its README) | sidebar | the full pipeline on new footage, with expected results |
 
 **Known limitations to keep in mind:** plates are not readable at this camera distance; colour labels are unreliable
 for silver/grey cars; a car seen very small or from a very different angle may not be matched; results are ranked
