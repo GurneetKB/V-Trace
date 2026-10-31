@@ -29,6 +29,16 @@ Videos ─► YOLO11 detection ─► ByteTrack tracking ─► sightings (track
 
 ---
 
+### Important Project Links
+
+Deployed Streamlit Application:
+https://v-trace.streamlit.app/
+
+GitHub Repository:
+https://github.com/GurneetKB/V-Trace
+
+---
+
 ## 1. Setup (Windows + VS Code)
 
 ```bash
