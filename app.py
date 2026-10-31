@@ -134,7 +134,8 @@ if st.session_state.get("view_for") != active:
     st.session_state.view, st.session_state.view_for = index.subset(active), list(active)
 view = st.session_state.view                          # all searching happens on these videos only
 GAP_CHOICES = [5, 10, 30, 60, 300, 900, 3600, 3 * 3600, 12 * 3600]       # seconds
-for key, value in (("threshold", config.MATCH_THRESHOLD), ("time_limit", True), ("max_gap", config.MAX_GAP_S)):
+for key, value in (("threshold", config.MATCH_THRESHOLD), ("time_limit", True), ("max_gap", config.MAX_GAP_S),
+                   ("fast", True)):
     st.session_state.setdefault(key, value)
 
 
@@ -180,15 +181,13 @@ def camera_form(name, key):
     t0 = cams.start_time(cam) or datetime.now().replace(microsecond=0)
     loc = st.text_input("Location", cam["location"], key=f"loc_{key}", placeholder="e.g. Orchard Rd / Scotts Rd junction")
     d, c = st.columns(2)
-    day = d.date_input("Recording date", t0.date(), key=f"day_{key}")
+    day = d.date_input("Date", t0.date(), key=f"day_{key}")
     clock = c.time_input("Start time", t0.time(), step=1, key=f"clock_{key}")
-    la, lo = st.columns(2)
-    lat = la.number_input("Latitude", value=cam["lat"], format="%.5f", key=f"lat_{key}", placeholder="optional")
-    lon = lo.number_input("Longitude", value=cam["lon"], format="%.5f", key=f"lon_{key}", placeholder="optional")
-    return {"location": loc.strip(), "lat": lat, "lon": lon, "start": datetime.combine(day, clock).isoformat()}
+    return {"location": loc.strip(), "start": datetime.combine(day, clock).isoformat()}
 
 
-def process(files, fast, details):
+def process(files, details):
+    fast = st.session_state.get("fast", True)
     stride, use_ocr = (5, False) if fast else (config.FRAME_STRIDE, config.ENABLE_OCR)
     names = []
     for f in files:
@@ -201,7 +200,8 @@ def process(files, fast, details):
                             progress=lambda x, b=bar: b.progress(min(x, 1.0)))
         names.append(dest.stem)
     index.save()
-    set_cameras(names, time_limit=False)
+    # test-pack clips (test_videos/) come with known camera clocks; other uploads may not have their clocks set
+    set_cameras(names, time_limit=all(n in cams.TEST_PACK for n in names))
 
 
 def sidebar():
@@ -218,21 +218,13 @@ def sidebar():
                                      accept_multiple_files=True)
             details = {}
             for i, f in enumerate(files or []):
-                with st.expander(f"{f.name}: location & recording start", expanded=True):
+                with st.expander(f"{f.name}: location & start time"):
                     details[f.name] = camera_form(f.name.rsplit(".", 1)[0], f"{i}_{f.name}")
-            fast = st.toggle("Fast processing", value=True,
-                             help="Every 5th frame without plate OCR (about 3× quicker). Off: every 3rd frame with OCR.")
             if st.button("Process videos", type="primary", disabled=not files, width="stretch"):
-                process(files, fast, details)
+                process(files, details)
                 st.rerun()
 
-        st.markdown(f"**Processed cameras** · {len(view)} vehicle sightings")
-        for v in active:
-            st.markdown(f"- **{v}** · {sum(t['video'] == v for t in view.tracklets)}  \n"
-                        f"  {index.camera(v)['location'] or 'location not set'}")
-        if not active:
-            st.caption("Nothing processed yet.")
-
+        st.caption(f"{len(active)} cameras · {len(view)} vehicle sightings" if active else "Nothing processed yet.")
         with st.expander("Settings"):
             st.slider("Same-vehicle threshold (Re-ID similarity)", 0.2, 0.9, step=0.05, key="threshold",
                       help="The best sighting in another camera counts as the selected vehicle when its FastReID "
@@ -242,8 +234,8 @@ def sidebar():
                            "camera's recording start + position in the video; set on the Cameras page).")
             st.select_slider("Max time between cameras", GAP_CHOICES, key="max_gap", format_func=cams.fmt_gap,
                              disabled=not st.session_state.time_limit)
-        st.divider()
-        st.caption(f"Signed in as **{st.session_state.admin_user}**")
+            st.toggle("Fast processing of uploads", key="fast",
+                      help="Every 5th frame without plate OCR (about 3× quicker). Off: every 3rd frame with OCR.")
         if st.button("Sign out", width="stretch"):
             st.session_state.clear()
             st.rerun()

@@ -110,7 +110,10 @@ def main():
 
     # "where seen" with the app's rule, with and without the real-world time window (curated camera clocks, vtrace/cameras.py)
     demo = []
-    for name, gap in (("real_time_window", config.MAX_GAP_S), ("no_time_window", None)):
+    # ablation of the decision rule: best sighting above the threshold -> + ratio test -> + real-world time window
+    rules = (("threshold_only", 0.0, None), ("no_time_window", config.MATCH_MARGIN, None),
+             ("real_time_window", config.MATCH_MARGIN, config.MAX_GAP_S))
+    for name, margin, gap in rules:
         truth = found = said = right = false_d = 0
         for t in zone_ts:
             if t["ref_id"] is None:
@@ -118,7 +121,7 @@ def main():
             true_vids = {u["video"] for u in by_id[t["ref_id"]] if u["video"] != t["video"]}
             if not true_vids:
                 continue
-            seen = reid.where_seen(view, t, max_gap_s=gap)
+            seen = reid.where_seen(view, t, margin=margin, max_gap_s=gap)
             pred = {v for v, s in seen.items() if s["match"] and v != t["video"]}
             good = {v for v in pred if seen[v]["match"][1].get("ref_id") == t["ref_id"]}
             truth += len(true_vids); found += len(good); said += len(pred); right += len(good)

@@ -433,8 +433,8 @@ s = content_slide("Live Demo",
                   "Describe → best matches → select → where this vehicle was seen.",
     "Now the app. After the admin signs in, the four demo cameras are already processed. I describe the target: colour "
     "red, type SUV, and search. The ranked matches show red cars; number three is a red Citroën in camera B at 42 "
-    "seconds past 8:15. I select it, and V-Trace shows where it was seen: Slovenska cesta west at 8:15:40.8, at the "
-    "crossing at 8:15:42.0 and east at 8:15:43.5, each with location, date and time, a crop and the full frame, plus a "
+    "seconds past 8:15. I select it, and V-Trace shows where it was seen: Orchard Road west of Scotts Road at "
+    "8:15:40.8, at the Scotts Road junction at 8:15:42.0 and east of it at 8:15:43.5, each with location, date and time, a crop and the full frame, plus a "
     "map. The other road, recorded minutes later, is listed as not seen. On the Cameras page each camera's location "
     "and recording start can be edited, and the route updates.")
 for i, (f, cap) in enumerate((("search.png", "“red + suv” → ranked best matches → Select"),
@@ -450,14 +450,14 @@ s = content_slide("Lessons Learned",
     f"Three lessons. First, a published model trained by the dataset's own authors beat anything I could train in ten "
     f"days, but I verified it by re-running the official benchmark before trusting it. Second, benchmark accuracy does "
     f"not transfer: on my street footage rank-one dropped to about {R['Rank-1']:.0f} percent. Third, decision rules matter "
-    f"as much as scores: a ratio test and a time window raised the share of correct cameras from about "
-    f"40 to {w_['camera_precision_%']:.0f} percent without any training.")
+    f"as much as scores: a ratio test and a time window raised the share of correct cameras from "
+    f"{R['threshold_only']['camera_precision_%']:.0f} to {w_['camera_precision_%']:.0f} percent without any training.")
 pit = [("USE WHAT EXISTS – AND CHECK IT", "FastReID's VeRi-776 model is far stronger than a model trained in ten days.",
         "Re-run the official benchmark first", f"Rank-1 {V['rank1']:.1f}% · mAP {V['mAP']:.1f}%", BLUE, N_TEAL),
        ("BENCHMARKS DON'T TRANSFER", "Small, distant vehicles and new angles in street footage.",
         "Measure on your own data (pseudo ground truth)", f"Rank-1 {V['rank1']:.0f}% → {R['Rank-1']:.0f}%", PEACH, N_ORANGE),
        ("DECISION RULES MATTER", "A threshold alone reports many look-alikes.",
-        "Ratio test + time window; show candidates when unsure", f"Precision ~40% → {w_['camera_precision_%']:.0f}%", LAV, N_PURPLE)]
+        "Ratio test + time window; show candidates when unsure", f"Precision {R['threshold_only']['camera_precision_%']:.0f}% → {w_['camera_precision_%']:.0f}%", LAV, N_PURPLE)]
 for i, (h, prob, fix, gain, fill, nc) in enumerate(pit):
     x = 0.6 + i * 4.15
     box(s, x, 1.7, 3.85, 4.0, fill)

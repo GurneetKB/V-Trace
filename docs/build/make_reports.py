@@ -3,7 +3,7 @@
     python docs/build/make_reports.py
 
 docs/REPORT.md            -> deliverables/V-Trace_Final_Report.docx/.pdf    ({{...}} filled from results/demo_eval.json)
-docs/INDIVIDUAL_REPORT.md -> deliverables/V-Trace_Individual_Report_Gurneet_Kaur_Bhuller.docx/.pdf
+docs/INDIVIDUAL_REPORT.md -> built separately in the PRS template format by docs/build/make_individual.py
 docs/DEMO_GUIDE.md        -> deliverables/V-Trace_Demo_Guide.docx/.pdf
 """
 import json
@@ -42,6 +42,9 @@ def fill(md):
             "demo.precision_nw": f"{r['no_time_window']['camera_precision_%']:.0f}",
             "demo.recall_nw": f"{r['no_time_window']['camera_recall_%']:.0f}",
             "demo.false_camD_nw": f"{r['no_time_window']['queries_wrongly_seen_in_camD_%']:.0f}",
+            "demo.precision_thr": f"{r['threshold_only']['camera_precision_%']:.0f}",
+            "demo.recall_thr": f"{r['threshold_only']['camera_recall_%']:.0f}",
+            "demo.false_camD_thr": f"{r['threshold_only']['queries_wrongly_seen_in_camD_%']:.0f}",
             "demo.clean": f"{d['tracking']['clean_tracklets_%']:.0f}"}
     out = re.sub(r"\{\{([^}]+)\}\}", lambda mt: str(vals[mt.group(1).strip()]), md)
     left = re.findall(r"\{\{[^}]+\}\}", out)
@@ -56,7 +59,6 @@ def main():
     jobs = [
         (tmp, "V-Trace_Final_Report.docx", "V-Trace: Final Project Report",
          ["Multi-Attribute Vehicle Re-Identification System", AUTHOR, COURSE, "31 October 2026"], True),
-        (DOCS / "INDIVIDUAL_REPORT.md", "V-Trace_Individual_Report_Gurneet_Kaur_Bhuller.docx", None, [], False),
         (DOCS / "DEMO_GUIDE.md", "V-Trace_Demo_Guide.docx", "V-Trace: Demo & Assessor Guide",
          ["How to run, sign in and try V-Trace", AUTHOR], False),
     ]

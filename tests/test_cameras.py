@@ -19,7 +19,7 @@ def test_unknown_start_gives_no_real_time():
 
 
 def test_demo_cameras_have_curated_details_and_user_edits_win():
-    assert cameras.info({}, "camA_west")["location"].startswith("Slovenska cesta")
+    assert cameras.info({}, "camA_west")["location"].startswith("Orchard Road")
     assert cameras.info({"camA_west": {"location": "My street"}}, "camA_west")["location"] == "My street"
     idx = VehicleIndex()
     idx.set_camera("camX", location="Somewhere", start="2026-10-28T10:00:00")

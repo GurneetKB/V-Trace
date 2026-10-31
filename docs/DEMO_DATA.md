@@ -31,16 +31,18 @@ provides the separate-camera evaluation.
 
 ## Curated camera details
 
-The clips carry no location or clock metadata, so the demo cameras get curated details (`vtrace/cameras.py`, editable
-on the app's **Cameras** page). camA–camC are zones of one recording, so they share one clock and are placed a few tens
-of metres apart along one street; camD is a different road and is given a later recording start.
+The clips carry no location or clock metadata, so the demo cameras get curated details placed in Singapore
+(`vtrace/cameras.py`, editable on the app's **Cameras** page). camA–camC are zones of one recording, so they share one
+clock and are placed about 80 m apart along Orchard Road; camD is a different road and is given a later recording
+start. The upload test pack (`test_videos/`, `scripts/make_test_videos.py`) is cut from the same recordings and gets
+curated details the same way.
 
 | Camera | Location (curated) | Recording start (curated) |
 |---|---|---|
-| `camA_west` | Slovenska cesta, west of the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
-| `camB_centre` | Slovenska cesta, at the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
-| `camC_east` | Slovenska cesta, east of the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
-| `camD_other_road` | Celovška cesta · Ljubljana | Wed 28 Oct 2026, 08:17:30 |
+| `camA_west` | Orchard Road, west of Scotts Road · Singapore | Wed 28 Oct 2026, 08:15:00 |
+| `camB_centre` | Orchard Road at the Scotts Road junction · Singapore | Wed 28 Oct 2026, 08:15:00 |
+| `camC_east` | Orchard Road, east of Scotts Road · Singapore | Wed 28 Oct 2026, 08:15:00 |
+| `camD_other_road` | Bukit Timah Road near Newton Circus · Singapore | Wed 28 Oct 2026, 08:17:30 |
 
 A sighting's real-world time = the camera's recording start + its position in the video.
 
