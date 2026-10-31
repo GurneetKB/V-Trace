@@ -6,7 +6,8 @@ sightings are ranked by similarity and the best one is reported as the same vehi
   * its similarity is at least config.MATCH_THRESHOLD, and
   * it beats that camera's second-best sighting by config.MATCH_MARGIN (Lowe's ratio test: when two vehicles look
     equally similar the answer is ambiguous, so it is left to the user), and
-  * optionally, when the videos were recorded at the same time, it is within max_gap_s seconds of the selected one.
+  * optionally, it is within max_gap_s seconds of the selected one in real-world time (camera recording start +
+    position in the video, vtrace/cameras.py); cameras whose recording start is unknown are not time-limited.
 """
 from . import config
 
@@ -16,8 +17,10 @@ def similarity(a, b):
 
 
 def gap(a, b):
-    """Seconds between two sightings' time spans (0 if they overlap)."""
-    return max(0.0, a["start_t"] - b["end_t"], b["start_t"] - a["end_t"])
+    """Real-world seconds between two sightings' time spans (0 if they overlap or a recording start is unknown)."""
+    if a.get("real_start") is None or b.get("real_start") is None:
+        return 0.0
+    return max(0.0, (a["real_start"] - b["real_end"]).total_seconds(), (b["real_start"] - a["real_end"]).total_seconds())
 
 
 def rank(index, query, videos=None, max_gap_s=None):
@@ -48,5 +51,6 @@ def where_seen(index, query, threshold=None, margin=None, max_gap_s=None):
 
 
 def route(seen):
-    """The matched sightings in time order."""
-    return sorted((s["match"][1] for s in seen.values() if s["match"]), key=lambda t: t["start_t"])
+    """The matched sightings in real-world time order (video time when a recording start is unknown)."""
+    return sorted((s["match"][1] for s in seen.values() if s["match"]),
+                  key=lambda t: (t.get("real_start") is None, t.get("real_start") or 0, t["start_t"]))

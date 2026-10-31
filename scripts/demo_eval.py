@@ -108,9 +108,9 @@ def main():
     results = {"queries": n, "Rank-1": 100 * r1 / n, "Rank-5": 100 * r5 / n, "mAP": 100 * maps / n,
                "threshold": config.MATCH_THRESHOLD, "margin": config.MATCH_MARGIN}
 
-    # "where seen" with the app's rule, with and without the time window (the demo cameras share a clock)
+    # "where seen" with the app's rule, with and without the real-world time window (curated camera clocks, vtrace/cameras.py)
     demo = []
-    for name, gap in (("same_clock", config.MAX_GAP_S), ("no_time_window", None)):
+    for name, gap in (("real_time_window", config.MAX_GAP_S), ("no_time_window", None)):
         truth = found = said = right = false_d = 0
         for t in zone_ts:
             if t["ref_id"] is None:
@@ -123,7 +123,7 @@ def main():
             good = {v for v in pred if seen[v]["match"][1].get("ref_id") == t["ref_id"]}
             truth += len(true_vids); found += len(good); said += len(pred); right += len(good)
             false_d += "camD_other_road" in pred
-            if name == "same_clock" and len(true_vids) == 2 and pred == good == true_vids:
+            if name == "real_time_window" and len(true_vids) == 2 and pred == good == true_vids:
                 demo.append(t)
         results[name] = {"camera_precision_%": 100 * right / max(said, 1), "camera_recall_%": 100 * found / truth,
                          "queries_wrongly_seen_in_camD_%": 100 * false_d / n}

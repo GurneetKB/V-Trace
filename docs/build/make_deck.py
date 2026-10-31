@@ -231,7 +231,7 @@ for i, (h, d, fill, nc) in enumerate(cards):
     text(s, x + 0.25, 3.25, 3.4, 1.6, d, 16, BODY_C)
 text(s, 0.6, 5.45, 1.6, 0.5, "Objective", 18, TEAL, bold=True, font=HEAD, anchor=MSO_ANCHOR.MIDDLE)
 text(s, 2.2, 5.35, 10.5, 0.8, "Find a vehicle from a description, then show every camera it was seen in – "
-                              "with time span and a frame from each sighting.", 20, INK, bold=True, font=HEAD)
+                              "with location, real-world time and a frame from each sighting.", 20, INK, bold=True, font=HEAD)
 text(s, 2.2, 6.45, 10.5, 0.4, "V-Trace ranks candidates for human review – it does not claim definitive identity.",
      13, INK, bold=True)
 
@@ -242,13 +242,14 @@ s = content_slide("How the User Uses V-Trace",
     "or traffic-cam clips. Each video is processed: every vehicle is detected and followed while it stays in view – "
     "for example a red sedan visible for four seconds in camera one is one sighting. The user describes the vehicle, "
     "V-Trace ranks the best matches, the user selects one, and V-Trace shows every camera where the same vehicle was "
-    "seen, with the time span and a frame.")
+    "seen, with the camera's location, the real-world date and time, and a frame. Real-world time is the camera's "
+    "recording start plus the position in the video, so cameras can be seconds, minutes or hours apart.")
 steps = [("1  VIDEOS", "Demo cameras on the platform\nor upload short clips", MINT, INK),
          ("2  PROCESS", "Detect + track every vehicle\n→ sightings\n(red sedan, cam 1, 4 s)", BLUE, INK),
          ("3  DESCRIBE", "Red · sedan\nPlate SGX12??\nRear spoiler", LAV, INK),
-         ("4  RANK", "#1 camA · 0:41\n#2 camB · 0:42\n#3 camC · 0:03", "E3F1EF", TEAL_D),
+         ("4  RANK", "#1 camA · 08:15:29\n#2 camA · 08:15:40\n#3 camB · 08:15:42", "E3F1EF", TEAL_D),
          ("5  SELECT", "User picks the right vehicle", LGREEN, GREEN_D),
-         ("6  WHERE SEEN", "camA 0:41 → camB 0:42 → camC 0:44\n+ a frame from each", "E8F3E8", GREEN_D)]
+         ("6  WHERE SEEN", "Location + real time\ncamA 08:15:40\n→ camB 08:15:42\n+ a frame from each", "E8F3E8", GREEN_D)]
 for i, (h, d, fill, hc) in enumerate(steps):
     x = 0.45 + i * 2.14
     box(s, x, 1.75, 1.82, 3.6, fill)
@@ -276,7 +277,7 @@ pipe = [("VIDEOS", "Demo or uploaded\n(one video = one camera)", BLUE),
         ("SEARCH", "User description\n→ ranked matches", "E6F2E9"),
         ("SELECT", "User picks the right vehicle", "FDF1E3"),
         ("Re-ID", "FastReID similarity\nthreshold + ratio test\n+ time window", "DDE7EC"),
-        ("WHERE SEEN", "Camera · time span\n· frame per sighting", "E3F1EF")]
+        ("WHERE SEEN", "Location · real-world\ntime · frame per\nsighting · map", "E3F1EF")]
 for i, (h, d, fill) in enumerate(pipe):
     x = 0.4 + i * 1.84
     box(s, x, 1.75, 1.6, 3.9, fill)
@@ -284,9 +285,9 @@ for i, (h, d, fill) in enumerate(pipe):
     text(s, x + 0.15, 3.0, 1.35, 2.5, d.split("\n"), 13, BODY_C, spacing=3)
     if i < 6:
         chevron(s, x + 1.63, 3.45, 0.18, 0.4)
-text(s, 0.45, 6.05, 12.4, 0.6, "Sighting = all frames in which one vehicle is seen continuously in one camera",
+text(s, 0.45, 6.05, 12.4, 0.6, "Sighting = one vehicle seen continuously in one camera · real-world time = camera recording start + position in video",
      14, INK, bold=True, align=PP_ALIGN.CENTER)
-text(s, 0.45, 6.45, 12.4, 0.4, "Streamlit app with admin sign-in: Search page (describe → best matches → where seen) · How it works page",
+text(s, 0.45, 6.45, 12.4, 0.4, "Streamlit app with admin sign-in: Search (describe → best matches → where seen) · Cameras (location + recording start) · How it works",
      12, MUTED, align=PP_ALIGN.CENTER)
 
 # ================================================================== 5 pretrained models
@@ -317,7 +318,8 @@ s = content_slide("Search & Matching",
     "and one, and the final score is the weighted mean over only those fields, so leaving a field empty never hurts. "
     "For re-identification, the similarity of two sightings is the cosine of their FastReID signatures. A camera counts "
     "as 'seen' only if its best sighting is above 0.40, beats the camera's second-best by 0.08 – a ratio test, so "
-    "look-alike cars are left to the user – and, for cameras that share a clock, is within ten seconds.")
+    "look-alike cars are left to the user – and is within ten seconds in real-world time, which is each camera's "
+    "recording start plus the position in its video.")
 box(s, 0.6, 1.7, 5.6, 4.6, GREY)
 text(s, 0.85, 1.9, 5.1, 0.4, "1  DESCRIPTION → RANKED MATCHES", 15, INK, bold=True, font=HEAD)
 for i, (f, w) in enumerate((("plate (wildcards)", "0.35"), ("colour (CLIP)", "0.30"), ("type (CLIP)", "0.25"),
@@ -333,9 +335,9 @@ text(s, 6.85, 2.45, 5.7, 3.8, [
     {"bullet": True, "text": [("Similarity ", {"bold": True}), ("= cosine of the FastReID signatures", {})]},
     {"bullet": True, "text": [("Threshold ≥ 0.40 ", {"bold": True}), ("– chosen from VeRi-776 score distributions", {})]},
     {"bullet": True, "text": [("Ratio test: ", {"bold": True}), ("best must beat the camera's 2nd best by 0.08 – look-alikes are left to the user", {})]},
-    {"bullet": True, "text": [("Time window: ", {"bold": True}), ("≤ 10 s when the cameras share a clock", {})]},
+    {"bullet": True, "text": [("Real-world time: ", {"bold": True}), ("camera recording start + position in the video; limit ≤ 10 s (5 s – 12 h)", {})]},
     {"bullet": True, "text": "No confident match → show the 3 closest vehicles instead"}], 15, spacing=8)
-key_box(s, 0.6, 6.5, 12.15, 0.55, "EVERY RESULT COMES WITH ITS EVIDENCE: TIME SPAN · CROP · FRAME · SCORE", 15)
+key_box(s, 0.6, 6.5, 12.15, 0.55, "EVERY RESULT COMES WITH ITS EVIDENCE: LOCATION · REAL-WORLD TIME · CROP · FRAME · SCORE", 15)
 
 # ================================================================== 7 technique groups
 s = content_slide("Technique Groups",
@@ -404,19 +406,21 @@ key_box(s, 0.6, 6.5, 12.15, 0.55, f"THRESHOLD 0.40: {th['same_vehicle_kept_%']:.
                                   f"{th['different_vehicle_kept_%']:.1f}% OF WRONG PAIRS", 15)
 
 # ================================================================== 10 demo results
-w_, nw = R["same_clock"], R["no_time_window"]
+w_, nw = R["real_time_window"], R["no_time_window"]
 s = content_slide("Results: Multi-Camera Demo Footage",
                   "Real street footage is harder than the benchmark – a cautious rule keeps reported cameras mostly correct.",
     f"On real street video the same model is much weaker: vehicles are small and seen from very different angles. The "
     f"correct sighting is ranked first for {R['Rank-1']:.0f} percent of queries. That is why the decision rule matters. "
-    f"With the ratio test and the ten-second window, {w_['camera_precision_%']:.0f} percent of the cameras V-Trace reports "
-    f"are correct, and only {w_['queries_wrongly_seen_in_camD_%']:.0f} percent of queries are wrongly placed on the other "
-    f"road. It finds {w_['camera_recall_%']:.0f} percent of the cameras – for the rest it shows the closest vehicles so "
-    f"the user can decide.")
+    f"With the ratio test and a ten-second real-world time window, {w_['camera_precision_%']:.0f} percent of the cameras "
+    f"V-Trace reports are correct. Part of that comes from the curated clocks: the other road was recorded minutes later, "
+    f"so the window rules it out. Without the window, the model and ratio test alone reach {nw['camera_precision_%']:.0f} "
+    f"percent, with {nw['queries_wrongly_seen_in_camD_%']:.0f} percent of queries wrongly placed on the other road. It "
+    f"finds {w_['camera_recall_%']:.0f} percent of the cameras – for the rest it shows the closest vehicles so the user can decide.")
 stats = [(f"{R['Rank-1']:.0f}% / {R['Rank-5']:.0f}%", "Rank-1 / Rank-5, other cameras", BLUE, N_TEAL),
-         (f"{w_['camera_precision_%']:.0f}%", f"reported cameras correct (no time window: {nw['camera_precision_%']:.0f}%)", MINT, TEAL_D),
+         (f"{w_['camera_precision_%']:.0f}%", f"reported cameras correct, 10 s real-time window (none: {nw['camera_precision_%']:.0f}%)", MINT, TEAL_D),
          (f"{w_['camera_recall_%']:.0f}%", "of true cameras reported", LGREEN, GREEN_D),
-         (f"{w_['queries_wrongly_seen_in_camD_%']:.0f}%", "queries wrongly placed on the other road", PEACH, N_ORANGE)]
+         (f"{w_['queries_wrongly_seen_in_camD_%']:.0f}% / {nw['queries_wrongly_seen_in_camD_%']:.0f}%",
+          "placed on the other road, with / without window", PEACH, N_ORANGE)]
 for i, (v, l, fill, c) in enumerate(stats):
     y = 1.7 + i * 1.22
     box(s, 0.6, y, 3.6, 1.05, fill)
@@ -429,10 +433,12 @@ s = content_slide("Live Demo",
                   "Describe → best matches → select → where this vehicle was seen.",
     "Now the app. After the admin signs in, the four demo cameras are already processed. I describe the target: colour "
     "red, type SUV, and search. The ranked matches show red cars; number three is a red Citroën in camera B at 42 "
-    "seconds. I select it, and V-Trace shows where it was seen: camera A at 40.8 seconds, camera B at 42.0 and camera C at "
-    "43.6, each with its time span, a crop and the full frame. The other road is listed as not seen.")
+    "seconds past 8:15. I select it, and V-Trace shows where it was seen: Slovenska cesta west at 8:15:40.8, at the "
+    "crossing at 8:15:42.0 and east at 8:15:43.5, each with location, date and time, a crop and the full frame, plus a "
+    "map. The other road, recorded minutes later, is listed as not seen. On the Cameras page each camera's location "
+    "and recording start can be edited, and the route updates.")
 for i, (f, cap) in enumerate((("search.png", "“red + suv” → ranked best matches → Select"),
-                              ("seen.png", "Route camA → camB → camC with time spans and frames"))):
+                              ("seen.png", "Route with location, real-world time and a frame per camera"))):
     x = 0.6 + i * 6.2
     box(s, x, 1.7, 5.95, 4.45, GREY)
     fit_picture(s, SHOTS / f, x + 0.15, 1.85, 5.65, 4.15)

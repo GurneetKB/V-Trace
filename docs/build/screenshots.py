@@ -26,7 +26,7 @@ OUT = ROOT / "docs" / "screenshots"
 EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 ADMIN = tomllib.loads((ROOT / ".streamlit" / "secrets.toml").read_text())["admin"]
 # Demo scenario (docs/DEMO_GUIDE.md): the red Citroen seen in camA, camB and camC.
-QUERY_TIME = "00:42.00"                                   # camB_centre#156, the red Citroen
+QUERY_TIME = "08:15:42.0"                                   # camB_centre#156, the red Citroen
 DEMO = {"colour": "red", "type": "suv"}
 PORT = 9350
 
@@ -149,6 +149,12 @@ async def run(ws_url):
         await p.js("window.scrollBy(0, 600)")
         await asyncio.sleep(1)
         await p.shot("seen_more.png")
+
+        # cameras page (locations + recording starts)
+        await p.click("[...document.querySelectorAll('a')].find(a => a.innerText.includes('Cameras'))")
+        await p.wait_text("Save camera details")
+        await asyncio.sleep(3)
+        await p.shot("cameras.png")
 
         # how it works page
         await p.click("[...document.querySelectorAll('a')].find(a => a.innerText.includes('How it works'))")
