@@ -12,3 +12,10 @@ submission/
 deliverables/*.mp4
 docs/build/_*
 *.pth
+
+# Submission documents are kept locally, not on GitHub
+deliverables/
+docs/REPORT.md
+docs/INDIVIDUAL_REPORT.md
+scripts/make_submission.py
+/V-Trace_*
