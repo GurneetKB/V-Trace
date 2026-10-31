@@ -1,8 +1,19 @@
-# CPU-only PyTorch wheels: small enough for Streamlit Community Cloud and identical locally.
-# Pinned to a widely used release: Windows Smart App Control blocks the brand-new torch DLLs.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1+cpu
-torchvision==0.20.1+cpu
+# CPU-only PyTorch, as direct wheel links (no extra package index: Streamlit Cloud's installer then also looked up
+# other packages on the PyTorch index and failed). Python 3.11-3.13 (3.13: torch 2.6, as torchvision 0.20 has no
+# 3.13 build). Pinned to a widely used release because
+# Windows Smart App Control blocks the brand-new torch DLLs.
+torch @ https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp311-cp311-linux_x86_64.whl ; sys_platform == "linux" and python_version == "3.11"
+torch @ https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp312-cp312-linux_x86_64.whl ; sys_platform == "linux" and python_version == "3.12"
+torch @ https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp311-cp311-win_amd64.whl ; sys_platform == "win32" and python_version == "3.11"
+torch @ https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp312-cp312-win_amd64.whl ; sys_platform == "win32" and python_version == "3.12"
+torch @ https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp313-cp313-linux_x86_64.whl ; sys_platform == "linux" and python_version == "3.13"
+torch==2.5.1 ; sys_platform != "linux" and sys_platform != "win32"
+torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.1%2Bcpu-cp311-cp311-linux_x86_64.whl ; sys_platform == "linux" and python_version == "3.11"
+torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.1%2Bcpu-cp312-cp312-linux_x86_64.whl ; sys_platform == "linux" and python_version == "3.12"
+torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.1%2Bcpu-cp311-cp311-win_amd64.whl ; sys_platform == "win32" and python_version == "3.11"
+torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.1%2Bcpu-cp312-cp312-win_amd64.whl ; sys_platform == "win32" and python_version == "3.12"
+torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.21.0%2Bcpu-cp313-cp313-linux_x86_64.whl ; sys_platform == "linux" and python_version == "3.13"
+torchvision==0.20.1 ; sys_platform != "linux" and sys_platform != "win32"
 
 # Detection + multi-object tracking (YOLO + ByteTrack)
 ultralytics>=8.3
