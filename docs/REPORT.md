@@ -197,11 +197,11 @@ sighting in real-world time (adjustable from 5 s to 12 h).
 ### 5.7 The application (`app.py`)
 An admin sign-in (credentials in Streamlit secrets, compared in constant time) protects the app, which opens in dark mode
 with the V-Trace logo. The sidebar chooses **Demo videos** or **Upload new videos** (location and start time per file)
-and holds *Settings* and *Sign out*. The **Search** page has three steps: *1 Describe the vehicle*, *2 Best matches*
+and *Sign out*. The **Search** page has three steps: *1 Describe the vehicle*, *2 Best matches*
 (crop, camera, real-world time, location, colour/type, score, **Select**) and *3 Where this vehicle was seen* (route with
 real-world times and the time between cameras, one row per sighting with location, date and time, crop and frame, a map,
 and the closest vehicles for cameras with no confident match). The **Cameras** page lists and edits every camera's
-location and recording start; **How it works** lists the models and benchmark results.
+location and recording start and holds the matching settings; **How it works** lists the models and benchmark results.
 
 ![Figure 1 – describe the vehicle and pick it from the ranked best matches](screenshots/search.png)
 
@@ -347,7 +347,7 @@ result.
    each sighting's location, date and time, crop and frame, and a map.
 5. To try uploads, choose **Upload new videos** and add a set from `test_videos/` (details fill in automatically), or
    your own clips with their location and start time.
-6. Edit camera locations and recording starts on the **Cameras** page; adjust the threshold and time limit in *Settings*.
+6. Edit camera locations and recording starts on the **Cameras** page; the threshold and time limit are there too.
 
 **C.4 Deployment and access.** The app deploys on Streamlit Community Cloud from the repository (`app.py`, Python 3.11,
 the `[admin]` block in Secrets). The hosted link and the assessor sign-in are provided with the Canvas submission.

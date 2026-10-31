@@ -205,66 +205,16 @@ def add_chart(slide, kind, cats, series, x, y, w, h, colors, **kw):
 # ================================================================== 1 title
 s = dark_slide(ART / "bg_title.png",
     "Hello, I'm Gurneet Kaur Bhuller from Group 21. This is V-Trace, a vehicle search and re-identification platform. "
-    "In the next ten minutes I'll recap the problem, show how V-Trace works using only pretrained, published models, "
-    "how I evaluated it on the VeRi-776 benchmark and on multi-camera street footage, what I learned, and then demonstrate the app.")
+    "As in my proposal, the problem is finding one vehicle across several cameras when the plate is unreadable and the "
+    "search starts from a description. Today I'll show what I built – V-Trace, using only pretrained, published models – "
+    "how it performs on the VeRi-776 benchmark and on multi-camera street footage, what I learned, and then the live app.")
 picture(s, LOGO_DARK, 0.55, 1.15, w=8.6)
 text(s, 0.75, 4.25, 9, 0.5, "DESCRIBE  →  RANK  →  SELECT  →  TRACE", 22, GREEN, bold=True, font=HEAD)
 text(s, 0.75, 5.05, 9, 0.5, "Multi-Attribute Vehicle Re-Identification System", 26, MINT_T)
 text(s, 0.75, 5.95, 9, 0.4, "Gurneet Kaur Bhuller  |  Group 21", 17, "FFFFFF")
 text(s, 0.75, 6.45, 9, 0.3, "Pattern Recognition Systems · Final Presentation", 12, "AEB8C2")
 
-# ================================================================== 2 problem
-s = content_slide("The Problem",
-                  "Investigators start from a description and a pile of camera footage, rarely from a readable plate.",
-    "Quick recap of the problem. A licence plate is the strongest clue, but in traffic footage it is often unreadable: "
-    "too small, blurred or facing away. In my demo footage not a single plate was readable. Investigators usually start "
-    "from a description, like a red sedan with a spoiler, and footage from several cameras. So the objective is: find "
-    "the vehicle from a description, then show every camera it passed, with times and frames, for a person to check.")
-cards = [("PLATE UNREADABLE", "Too small, blurred, occluded or facing away from the camera", BLUE, N_TEAL),
-         ("ONLY A DESCRIPTION", "“Red sedan, spoiler, plate starts SGX…” – incomplete and uncertain", PEACH, N_ORANGE),
-         ("MANY CAMERAS", "Each camera sees the car briefly, from a different angle and distance", LAV, N_PURPLE)]
-for i, (h, d, fill, nc) in enumerate(cards):
-    x = 0.6 + i * 4.15
-    box(s, x, 1.75, 3.85, 3.3, fill)
-    text(s, x + 0.25, 1.95, 3.4, 0.45, f"{i + 1:02d}", 20, nc, bold=True, font=HEAD)
-    text(s, x + 0.25, 2.5, 3.4, 0.5, h, 20, INK, bold=True, font=HEAD)
-    text(s, x + 0.25, 3.25, 3.4, 1.6, d, 16, BODY_C)
-text(s, 0.6, 5.45, 1.6, 0.5, "Objective", 18, TEAL, bold=True, font=HEAD, anchor=MSO_ANCHOR.MIDDLE)
-text(s, 2.2, 5.35, 10.5, 0.8, "Find a vehicle from a description, then show every camera it was seen in – "
-                              "with location, real-world time and a frame from each sighting.", 20, INK, bold=True, font=HEAD)
-text(s, 2.2, 6.45, 10.5, 0.4, "V-Trace ranks candidates for human review – it does not claim definitive identity.",
-     13, INK, bold=True)
-
-# ================================================================== 3 how the user uses it
-s = content_slide("How the User Uses V-Trace",
-                  "Pick videos, describe the vehicle, select the right match – V-Trace shows where else it was seen.",
-    "This is the workflow. First, choose the videos: the demo cameras already on the platform, or upload short dash-cam "
-    "or traffic-cam clips. Each video is processed: every vehicle is detected and followed while it stays in view – "
-    "for example a red sedan visible for four seconds in camera one is one sighting. The user describes the vehicle, "
-    "V-Trace ranks the best matches, the user selects one, and V-Trace shows every camera where the same vehicle was "
-    "seen, with the camera's location, the real-world date and time, and a frame. Real-world time is the camera's "
-    "recording start plus the position in the video, so cameras can be seconds, minutes or hours apart.")
-steps = [("1  VIDEOS", "Demo cameras on the platform\nor upload short clips", MINT, INK),
-         ("2  PROCESS", "Detect + track every vehicle\n→ sightings\n(red sedan, cam 1, 4 s)", BLUE, INK),
-         ("3  DESCRIBE", "Red · sedan\nPlate SGX12??\nRear spoiler", LAV, INK),
-         ("4  RANK", "#1 camA · 08:15:29\n#2 camA · 08:15:40\n#3 camB · 08:15:42", "E3F1EF", TEAL_D),
-         ("5  SELECT", "User picks the right vehicle", LGREEN, GREEN_D),
-         ("6  WHERE SEEN", "Location + real time\ncamA 08:15:40\n→ camB 08:15:42\n+ a frame from each", "E8F3E8", GREEN_D)]
-for i, (h, d, fill, hc) in enumerate(steps):
-    x = 0.45 + i * 2.14
-    box(s, x, 1.75, 1.82, 3.6, fill)
-    text(s, x + 0.17, 1.93, 1.55, 0.7, h, 17, hc, bold=True, font=HEAD)
-    text(s, x + 0.17, 2.95, 1.55, 2.2, d.split("\n"), 14, BODY_C, spacing=2)
-    if i < 5:
-        chevron(s, x + 1.87, 3.3, 0.22, 0.45)
-for x1, x2, c, lab in ((1.0, 4.2, NAVY_BOX, "VIDEO → SIGHTINGS"), (4.8, 8.4, TEAL, "DESCRIPTION → RANKED MATCHES"),
-                       (9.0, 12.6, GREEN, "SELECTED → OTHER CAMERAS (Re-ID)")):
-    ln = s.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(5.75), Inches(x2), Inches(5.75))
-    ln.line.color.rgb, ln.line.width = rgb(c), Pt(1.5)
-    ln.line.dash_style = 3
-    text(s, x1, 6.0, x2 - x1, 0.4, lab, 13, c, bold=True, font=HEAD, align=PP_ALIGN.CENTER)
-
-# ================================================================== 4 system design
+# ================================================================== 2 system design
 s = content_slide("System Design",
                   "Every step uses a published, pretrained model – nothing is trained for this project.",
     "Here is the system. YOLO11 detects vehicles and ByteTrack follows each one; one track is one sighting, with four "
@@ -290,7 +240,7 @@ text(s, 0.45, 6.05, 12.4, 0.6, "Sighting = one vehicle seen continuously in one 
 text(s, 0.45, 6.45, 12.4, 0.4, "Streamlit app with admin sign-in: Search (describe → best matches → where seen) · Cameras (location + recording start) · How it works",
      12, MUTED, align=PP_ALIGN.CENTER)
 
-# ================================================================== 5 pretrained models
+# ================================================================== 3 pretrained models
 s = content_slide("Pretrained Models Used",
                   "Each model is used exactly as published; V-Trace connects them into one workflow.",
     "These are the five pretrained components. YOLO11 nano detects cars, motorcycles, buses and trucks. ByteTrack links "
@@ -311,7 +261,7 @@ for i, (h, d, src, fill, nc) in enumerate(models):
     text(s, x + 0.25, y + 1.8, 3.4, 0.35, src, 12, nc, bold=True)
 key_box(s, 0.6, 6.65, 12.15, 0.5, "NO TRAINING: PUBLISHED WEIGHTS, USED AS-IS", 15)
 
-# ================================================================== 6 matching
+# ================================================================== 4 matching
 s = content_slide("Search & Matching",
                   "A description score for step one; a cautious same-vehicle rule for step two.",
     "Two scoring steps. For the description, every field the user fills in gives each sighting a score between zero "
@@ -339,48 +289,7 @@ text(s, 6.85, 2.45, 5.7, 3.8, [
     {"bullet": True, "text": "No confident match → show the 3 closest vehicles instead"}], 15, spacing=8)
 key_box(s, 0.6, 6.5, 12.15, 0.55, "EVERY RESULT COMES WITH ITS EVIDENCE: LOCATION · REAL-WORLD TIME · CROP · FRAME · SCORE", 15)
 
-# ================================================================== 7 technique groups
-s = content_slide("Technique Groups",
-                  "Each technique group has a distinct role in the same pipeline.",
-    "How the module's technique groups map onto V-Trace. Deep learning: the pretrained YOLO, FastReID, CLIP and OCR "
-    "models. Supervised learning: the FastReID model is a supervised metric-learning model trained by its authors on "
-    "VeRi identities, which I apply to new footage. Hybrid, multi-evidence: the description search combines colour, "
-    "type, plate, feature and text evidence. Intelligent sensing and sense-making: the chain from raw video to the "
-    "places and times a vehicle was seen.")
-groups = [("1  MACHINE / DEEP LEARNING", "Pretrained YOLO11 detector · FastReID Re-ID network\nCLIP vision-language model · EasyOCR", BLUE),
-          ("2  SUPERVISED LEARNING", "FastReID: supervised metric learning on VeRi-776 identities\n(softmax + triplet losses), applied to new footage", MINT),
-          ("3  HYBRID / MULTI-EVIDENCE", "Description search fuses colour + type + plate + features + free text,\nweights adapt to the fields given", "FDF1E3"),
-          ("4  INTELLIGENT SENSING / SENSE-MAKING", "Raw video → detections → tracks → sightings → ranked matches → where seen", LGREEN)]
-for i, (h, d, fill) in enumerate(groups):
-    x, y = 0.6 + (i % 2) * 6.2, 1.7 + (i // 2) * 2.65
-    box(s, x, y, 5.95, 2.35, fill)
-    text(s, x + 0.25, y + 0.25, 5.5, 0.45, h, 17, INK, bold=True, font=HEAD)
-    text(s, x + 0.25, y + 1.0, 5.5, 1.3, d.split("\n"), 15, BODY_C, spacing=4)
-
-# ================================================================== 8 data
-s = content_slide("Data & Evaluation Protocol",
-                  "A benchmark checks the Re-ID model; multi-camera street footage tests the whole workflow.",
-    "Two kinds of data. VeRi-776 checks the re-identification model: I ran the published checkpoint on the official "
-    "split, about seventeen hundred query images against about eleven and a half thousand gallery images. The demo footage "
-    "tests the workflow: an openly licensed street recording is cut into three camera zones along the road, so the same "
-    "cars really pass camera A, B and C, plus a fourth camera on another road as a distractor. Tracking the full frame "
-    "once gives a pseudo ground truth for measuring the demo.")
-box(s, 0.6, 1.7, 5.0, 4.6, LAV)
-text(s, 0.85, 1.9, 4.5, 0.4, "BENCHMARK  |  VeRi-776", 16, INK, bold=True, font=HEAD)
-text(s, 0.85, 2.5, 4.5, 3.6, ["50K+ images · 776 vehicles · 20 cameras",
-                              f"Official split: {V['queries']:,} queries · {V['gallery']:,} gallery images",
-                              "Standard protocol (same camera + same vehicle ignored)", "", "Used for:",
-                              {"bullet": True, "text": "checking the published model: Rank-1 / Rank-5 / mAP"},
-                              {"bullet": True, "text": "choosing the same-vehicle threshold"}], 14, spacing=3)
-box(s, 6.0, 1.7, 6.75, 4.6, BLUE)
-text(s, 6.25, 1.9, 6.3, 0.4, "VIDEO DEMONSTRATION  |  4 CAMERAS", 16, INK, bold=True, font=HEAD)
-fit_picture(s, FIGS / "demo_zones.jpg", 6.25, 2.4, 6.25, 3.0)
-text(s, 6.25, 5.5, 6.3, 0.7, f"3 zones of one CC BY 3.0 street clip (same cars pass A → B → C) + camD on another road · "
-                             f"{sum(D['tracklets'].values())} sightings · pseudo ground truth from full-frame tracking", 12, BODY_C)
-text(s, 0.6, 6.55, 12.15, 0.4, "Benchmark = “Does the Re-ID model work?”    |    Videos = “Does the platform work?”",
-     15, NAVY_BOX, bold=True, font=HEAD, align=PP_ALIGN.CENTER)
-
-# ================================================================== 9 VeRi results
+# ================================================================== 5 VeRi results
 th = V[f"threshold_{R['threshold']}"]
 same, diff = V["same_vehicle_similarity_percentiles_10_50_90"], V["different_vehicle_similarity_percentiles_50_99_99.9"]
 s = content_slide("Results: Re-ID Model on VeRi-776",
@@ -405,11 +314,13 @@ for i, (v, l, fill, c) in enumerate(callouts):
 key_box(s, 0.6, 6.5, 12.15, 0.55, f"THRESHOLD 0.40: {th['same_vehicle_kept_%']:.0f}% OF TRUE PAIRS PASS, "
                                   f"{th['different_vehicle_kept_%']:.1f}% OF WRONG PAIRS", 15)
 
-# ================================================================== 10 demo results
+# ================================================================== 6 demo results
 w_, nw = R["real_time_window"], R["no_time_window"]
 s = content_slide("Results: Multi-Camera Demo Footage",
                   "Real street footage is harder than the benchmark – a cautious rule keeps reported cameras mostly correct.",
-    f"On real street video the same model is much weaker: vehicles are small and seen from very different angles. The "
+    f"The demo footage is an openly licensed street recording cut into three camera zones along one road, so the same "
+    f"cars really pass all three, plus a fourth camera on another road; tracking the full frame once gives a pseudo ground "
+    f"truth. On this real street video the same model is much weaker: vehicles are small and seen from very different angles. The "
     f"correct sighting is ranked first for {R['Rank-1']:.0f} percent of queries. That is why the decision rule matters. "
     f"With the ratio test and a ten-second real-world time window, {w_['camera_precision_%']:.0f} percent of the cameras "
     f"V-Trace reports are correct. Part of that comes from the curated clocks: the other road was recorded minutes later, "
@@ -428,7 +339,7 @@ for i, (v, l, fill, c) in enumerate(stats):
     text(s, 0.82, y + 0.65, 3.2, 0.35, l, 12, BODY_C)
 fit_picture(s, SHOTS / "seen.png", 4.55, 1.7, 8.2, 5.15)
 
-# ================================================================== 11 demo
+# ================================================================== 7 demo
 s = content_slide("Live Demo",
                   "Describe → best matches → select → where this vehicle was seen.",
     "Now the app. After the admin signs in, the four demo cameras are already processed. I describe the target: colour "
@@ -444,7 +355,7 @@ for i, (f, cap) in enumerate((("search.png", "“red + suv” → ranked best ma
     fit_picture(s, SHOTS / f, x + 0.15, 1.85, 5.65, 4.15)
     text(s, x, 6.3, 5.95, 0.35, cap, 14, INK, bold=True, font=HEAD, align=PP_ALIGN.CENTER)
 
-# ================================================================== 12 lessons
+# ================================================================== 8 lessons
 s = content_slide("Lessons Learned",
                   "Use what exists, verify it, and measure it on your own data.",
     f"Three lessons. First, a published model trained by the dataset's own authors beat anything I could train in ten "
@@ -467,7 +378,7 @@ for i, (h, prob, fix, gain, fill, nc) in enumerate(pit):
                                        [("So  ", {"bold": True, "color": TEAL_D}), (fix, {})]], 14, spacing=4)
     key_box(s, x, 5.9, 3.85, 0.8, gain, 16)
 
-# ================================================================== 13 limitations
+# ================================================================== 9 limitations
 s = content_slide("Limitations & Next Steps",
                   "A focused proof of concept – the clearest next steps follow from the results.",
     "Limitations. The model was trained on VeRi images and is weaker on small, distant vehicles. Plates are rarely "
@@ -488,7 +399,7 @@ for i, (l, n) in enumerate(lim):
     label(b, n, 14, INK, bold=False, align=PP_ALIGN.LEFT)
 key_box(s, 2.3, 6.55, 8.75, 0.5, "MVP: recorded-video proof of concept  →  future extension: live camera streams", 14)
 
-# ================================================================== 14 conclusion + thank you
+# ================================================================== 10 conclusion + thank you
 s = dark_slide(ART / "bg_end.png",
     f"To conclude: V-Trace turns camera videos into searchable sightings, ranks them against a description, and once the "
     f"user selects the right vehicle, shows every camera it was seen in with times and frames. It is built entirely from "

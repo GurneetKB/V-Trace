@@ -50,7 +50,7 @@ Open http://localhost:8501 and sign in. The app opens in dark mode (⋮ → Sett
 
 1. **Videos (sidebar).** *Demo videos* are already processed: four cameras, three along one street (so the same
    cars pass A → B → C) and one on another road. *Upload new videos* takes your own short clips; **Process videos**
-   runs detection, tracking and description (*Fast processing* in Settings = every 5th frame, no plate OCR). For each upload
+   runs detection, tracking and description (*Fast processing*, on the Cameras page = every 5th frame, no plate OCR). For each upload
    enter the camera's **location** and **recording start** (date + time): a sighting's real-world time = recording
    start + its position in the video, so cameras can be seconds, minutes or hours apart.
 2. **Describe the vehicle.** Colour, type, plate (`?` = unknown character), distinctive features, free text. Any
@@ -58,9 +58,9 @@ Open http://localhost:8501 and sign in. The app opens in dark mode (⋮ → Sett
 3. **Select** the right one.
 4. **Where this vehicle was seen** lists every camera: location, real-world date and time span, a crop and one full
    frame of each sighting, the route in real-world time order (with the time between cameras) and a map. Cameras with no
-   confident match show the closest vehicles. The Re-ID threshold and the real-world time limit are under *Settings*.
+   confident match show the closest vehicles. The Re-ID threshold and the real-world time limit are on the **Cameras** page.
 
-The **Cameras** page lists and edits every camera's location and recording start. The demo videos have no such
+The **Cameras** page lists and edits every camera's location and recording start, and holds the matching settings. The demo videos have no such
 metadata, so their details are curated and placed in Singapore (`vtrace/cameras.py`): camA–camC on Orchard Road around
 the Scotts Road junction with the same clock, camD on Bukit Timah Road 2.5 minutes later.
 

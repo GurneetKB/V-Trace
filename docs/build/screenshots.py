@@ -154,7 +154,7 @@ async def run(ws_url):
         await p.click("[...document.querySelectorAll('a')].find(a => a.innerText.includes('Cameras'))")
         await p.wait_text("Save camera details")
         await asyncio.sleep(3)
-        await p.shot("cameras.png")
+        await p.shot("cameras.png", scroll_to="document.querySelector('h1')")
 
         # how it works page
         await p.click("[...document.querySelectorAll('a')].find(a => a.innerText.includes('How it works'))")

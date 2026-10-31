@@ -20,7 +20,7 @@ so the same vehicles pass west → Scotts → east (or the reverse). Set 1 cover
 so the two sets show mostly different vehicles. Set 3 is a different road. The recordings carry no location or clock
 metadata, so the Singapore locations and times are curated (`vtrace/cameras.py`); edit them on the **Cameras** page.
 
-**Processing time.** With *Fast processing* on (the default, sidebar → Settings), each clip takes about as long as it
+**Processing time.** With *Fast processing* on (the default, **Cameras** page → *Matching settings*), each clip takes about as long as it
 plays: around 20–25 s per clip on a laptop CPU. On Streamlit Community Cloud allow about a minute per clip.
 
 ## Results to expect (Fast processing on)
@@ -46,7 +46,7 @@ there too briefly to keep at the Fast setting, or no candidate was a confident m
 cautious, not a crash. On these sets about 71–75% of the cameras V-Trace reports are correct, and it reports about a
 third of the cameras each vehicle really passed through.
 
-**Things to try:** turn off *Limit by real-world time* (Settings) and see how many more candidates appear; change a
+**Things to try:** turn off *Limit by real-world time* (**Cameras** page) and see how many more candidates appear; change a
 camera's recording start on the **Cameras** page (for example set the east camera 1 minute earlier) and watch the
 route re-order; upload your own short dash-cam or traffic clips and enter their location and start time.
 

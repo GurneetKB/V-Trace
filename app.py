@@ -225,17 +225,6 @@ def sidebar():
                 st.rerun()
 
         st.caption(f"{len(active)} cameras · {len(view)} vehicle sightings" if active else "Nothing processed yet.")
-        with st.expander("Settings"):
-            st.slider("Same-vehicle threshold (Re-ID similarity)", 0.2, 0.9, step=0.05, key="threshold",
-                      help="The best sighting in another camera counts as the selected vehicle when its FastReID "
-                           "similarity is at least this value and clearly above the camera's next-best sighting.")
-            st.toggle("Limit by real-world time", key="time_limit",
-                      help="A vehicle can only reappear in another camera within this time (real-world time = the "
-                           "camera's recording start + position in the video; set on the Cameras page).")
-            st.select_slider("Max time between cameras", GAP_CHOICES, key="max_gap", format_func=cams.fmt_gap,
-                             disabled=not st.session_state.time_limit)
-            st.toggle("Fast processing of uploads", key="fast",
-                      help="Every 5th frame without plate OCR (about 3× quicker). Off: every 3rd frame with OCR.")
         if st.button("Sign out", width="stretch"):
             st.session_state.clear()
             st.rerun()
@@ -344,12 +333,38 @@ def search_page():
 
 
 # ------------------------------------------------------------------ cameras page
+def setting(widget, label, key, **kw):
+    """A settings widget whose value outlives the page (Streamlit drops the state of widgets that are not on screen,
+    so the value is kept under `key` and the widget uses its own key)."""
+    st.session_state[f"w_{key}"] = st.session_state[key]
+    widget(label, key=f"w_{key}", on_change=lambda: st.session_state.__setitem__(key, st.session_state[f"w_{key}"]), **kw)
+
+
+def matching_settings():
+    st.subheader("Matching settings")
+    a, b = st.columns(2)
+    with a:
+        setting(st.slider, "Same-vehicle threshold (Re-ID similarity)", "threshold", min_value=0.2, max_value=0.9,
+                step=0.05, help="The best sighting in another camera counts as the selected vehicle when its FastReID "
+                                "similarity is at least this value and clearly above the camera's next-best sighting.")
+        setting(st.toggle, "Fast processing of uploads", "fast",
+                help="Every 5th frame without plate OCR (about 3× quicker). Off: every 3rd frame with OCR.")
+    with b:
+        setting(st.toggle, "Limit by real-world time", "time_limit",
+                help="A vehicle can only reappear in another camera within this time (real-world time = the camera's "
+                     "recording start + position in the video).")
+        setting(st.select_slider, "Max time between cameras", "max_gap", options=GAP_CHOICES,
+                format_func=cams.fmt_gap, disabled=not st.session_state.time_limit)
+
+
 def cameras_page():
     st.title("Cameras")
-    st.caption("Where each camera is and when its video started recording. A sighting's real-world time = the "
-               "recording start + its position in the video, so cameras can be seconds, minutes or hours apart.")
+    st.caption("Where each camera is and when its video started recording, and the matching settings. A sighting's "
+               "real-world time = the recording start + its position in the video, so cameras can be seconds, minutes "
+               "or hours apart.")
     if not active:
         st.info("No processed videos.")
+        matching_settings()
         return
     if any(v in cams.DEMO for v in active):
         st.caption("ℹ️ The demo videos have no location or clock metadata, so their details are curated for the demo "
@@ -381,6 +396,7 @@ def cameras_page():
            if r["latitude"] is not None and r["longitude"] is not None]
     if pts:
         st.map(pd.DataFrame(pts), size=25, zoom=13)
+    matching_settings()
 
 
 # ------------------------------------------------------------------ about page

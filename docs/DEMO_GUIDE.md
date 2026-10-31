@@ -48,7 +48,7 @@ The Search page has three steps: **1 Describe the vehicle**, **2 Best matches**,
 **Scenario C – real-world time decides (cameras a minute apart)**
 - **Cameras** page: change camC_east's recording start to **08:14:00** (1 min earlier) and click **Save camera details**.
 - Repeat Scenario A: camC's sighting is now at 08:14:43.5, about a minute before the others, so with the 10 s limit it
-  is *Not seen*. Sidebar → Settings → *Max time between cameras* **1 min 00 s**: it is matched again and the route is
+  is *Not seen*. **Cameras** page → *Matching settings* → *Max time between cameras* **1 min 00 s**: it is matched again and the route is
   re-ordered in real-world time (camC → camA → camB). camD (recorded from 08:17:30) stays out. Set camC back to
   08:15:00 afterwards.
 
@@ -59,7 +59,7 @@ The Search page has three steps: **1 Describe the vehicle**, **2 Best matches**,
 - Describe Colour **gray**, Type **suv**, select **#1** (west camera, 17:45:04.0): the route shows the Scotts Road
   junction 3.2 s later. More scenarios with expected results are in `test_videos/README.md`.
 - For your own clips, open each file's *location & start time* box and enter them before processing; for uploads with
-  unknown clocks the real-world time limit stays off (Settings). Details can be edited later on the **Cameras** page.
+  unknown clocks the real-world time limit stays off (**Cameras** page → *Matching settings*). Details can be edited later on the **Cameras** page.
 
 **Talking points while it runs**
 - Every model is pretrained and used as published: YOLO11 + ByteTrack (sightings), CLIP zero-shot (description),
@@ -117,7 +117,7 @@ car is seen there too briefly to keep, or no candidate is a confident match.
 |---|---|---|
 | Colour **black**, Type **sedan** | Bukit Timah · 17:48:02.0 | only Bukit Timah Road; Orchard Road cameras *Not seen* |
 | Colour **white**, Type **van** | Bukit Timah · 17:48:01.2 | only Bukit Timah Road |
-| Type **bus** | Bukit Timah · 17:48:11.6 | only Bukit Timah Road. Turn off *Limit by real-world time* (Settings) and it is wrongly matched to two Orchard Road cameras: this shows why the time limit matters |
+| Type **bus** | Bukit Timah · 17:48:11.6 | only Bukit Timah Road. Turn off *Limit by real-world time* (**Cameras** page) and it is wrongly matched to two Orchard Road cameras: this shows why the time limit matters |
 
 **Combinations to avoid in a live demo** (checked: the suggested match is a different vehicle): demo Colour gray +
 Type suv #4, Colour white + Type van, Colour green #4.
@@ -130,7 +130,7 @@ Type suv #4, Colour white + Type van, Colour green #4.
 | Type a partial plate with wildcards, e.g. `SGX1?3?` | Search 1 | wildcard plate matching (plates are rarely readable in the demo footage, so unread plates get a neutral score) |
 | Pick a distinctive feature or type free text, e.g. "bus" | Search 1 | CLIP text–image scoring |
 | Select different vehicles from the results | Search 3 | per-camera sightings, or the closest candidates when there is no confident match |
-| Change the threshold, the *Max time between cameras* or turn off *Limit by real-world time* | sidebar → Settings | stricter / looser matching; the real-world time window |
+| Change the threshold, the *Max time between cameras* or turn off *Limit by real-world time* | Cameras page → Matching settings | stricter / looser matching; the real-world time window |
 | Edit a camera's location or recording start | Cameras page | real-world times and the route update |
 | *Upload new videos* with a set from `test_videos/` (see its README) | sidebar | the full pipeline on new footage, with expected results |
 
