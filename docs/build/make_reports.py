@@ -17,7 +17,7 @@ import md2pdf  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS, OUT, RES = ROOT / "docs", ROOT / "deliverables", ROOT / "results"
-LOGO = ROOT / "assets" / "nus_iss_logo.png"
+LOGO = ROOT / "assets" / "vtrace_logo_light.png"
 AUTHOR = "Gurneet Kaur Bhuller (A0354164E) · Group 21"
 COURSE = "Graduate Certificate in Pattern Recognition Systems · Practice Module"
 
@@ -58,7 +58,7 @@ def main():
     tmp.write_text(fill((DOCS / "REPORT.md").read_text(encoding="utf-8")), encoding="utf-8")
     jobs = [
         (tmp, "V-Trace_Final_Report.docx", "V-Trace: Final Project Report",
-         ["Multi-Attribute Vehicle Re-Identification System", AUTHOR, COURSE, "31 October 2026"], True),
+         ["Multi-Attribute Vehicle Re-Identification System", AUTHOR, COURSE, "31 October 2026"], False),
         (DOCS / "DEMO_GUIDE.md", "V-Trace_Demo_Guide.docx", "V-Trace: Demo & Assessor Guide",
          ["How to run, sign in and try V-Trace", AUTHOR], False),
     ]
