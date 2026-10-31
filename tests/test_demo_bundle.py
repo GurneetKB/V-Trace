@@ -29,7 +29,7 @@ def test_demo_cameras_load_from_bundle_without_videos(tmp_path, monkeypatch):
     assert not at.exception
     assert sorted(at.session_state["active"]) == ["camA_west", "camB_centre", "camC_east", "camD_other_road"]
     assert len(at.session_state["view"]) > 100
-    assert at.session_state["same_clock"]                       # demo cameras share a clock
+    assert at.session_state["time_limit"]                       # real-world time window on for the demo
 
     # describe -> ranked matches -> select -> where seen (the demo scenario in docs/DEMO_GUIDE.md)
     at.selectbox[0].select("red")
@@ -42,4 +42,6 @@ def test_demo_cameras_load_from_bundle_without_videos(tmp_path, monkeypatch):
     at.run()
     assert not at.exception
     route = next(m.value for m in at.markdown if m.value.startswith("**Route:**"))
-    assert "camA_west (00:40.80)" in route and "camB_centre (00:42.00)" in route and "camC_east (00:43.56)" in route
+    # real-world times: curated recording start 08:15:00 + position in the video
+    assert route.index("**camA_west** 08:15:40.8") < route.index("**camB_centre** 08:15:42.0")         < route.index("**camC_east** 08:15:43.5")
+    assert "(+1.2 s)" in route

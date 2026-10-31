@@ -29,6 +29,21 @@ Public multi-camera traffic datasets with re-appearing vehicles (e.g. CityFlow) 
 three cameras are zones of one recording. This is stated wherever demo results are reported. The VeRi-776 benchmark
 provides the separate-camera evaluation.
 
+## Curated camera details
+
+The clips carry no location or clock metadata, so the demo cameras get curated details (`vtrace/cameras.py`, editable
+on the app's **Cameras** page). camA–camC are zones of one recording, so they share one clock and are placed a few tens
+of metres apart along one street; camD is a different road and is given a later recording start.
+
+| Camera | Location (curated) | Recording start (curated) |
+|---|---|---|
+| `camA_west` | Slovenska cesta, west of the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
+| `camB_centre` | Slovenska cesta, at the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
+| `camC_east` | Slovenska cesta, east of the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
+| `camD_other_road` | Celovška cesta · Ljubljana | Wed 28 Oct 2026, 08:17:30 |
+
+A sighting's real-world time = the camera's recording start + its position in the video.
+
 ## Demo evaluation
 
 `python scripts/demo_eval.py` tracks the uncropped clip once, maps every camera tracklet back onto it by box overlap

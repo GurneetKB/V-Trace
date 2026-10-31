@@ -7,7 +7,8 @@ The user loads short dash-cam or traffic-camera videos, either the demo videos a
 and V-Trace processes each video into *sightings*: every vehicle is detected, followed while it stays in view, and
 described. The user then describes the vehicle they are looking for (colour, type, full or partial licence plate,
 distinctive features, free text). V-Trace returns a **ranked list of best matches**. When the user selects one, V-Trace
-shows **every camera the vehicle was seen in, with the time span and one frame from each sighting**.
+shows **every camera the vehicle was seen in, with the camera's location, the real-world date and time of the
+sighting and one frame from it**.
 
 The system is built entirely from **published, pretrained models**. Nothing is trained for this project:
 YOLO11 detects vehicles, ByteTrack follows them, CLIP scores the description zero-shot, EasyOCR reads plates, and the
@@ -41,8 +42,8 @@ other camera, without needing the plate.
 - processes each video and groups the frames in which one vehicle is seen continuously into one **sighting**
   (e.g. a red sedan visible for 4 s in camera 1);
 - takes a description of the target (colour, type, plate, distinctive features, free text) and returns ranked best matches;
-- after the user selects a match, shows every camera in which that vehicle was seen, with the time span and one frame
-  from each sighting.
+- after the user selects a match, shows every camera in which that vehicle was seen, with the camera's location, the
+  real-world time of the sighting and one frame from it. Cameras may be seconds, minutes or hours apart in time.
 
 | In scope | Out of scope |
 |---|---|
@@ -59,7 +60,9 @@ Videos ─► YOLO11n detection ─► ByteTrack tracking ─► sightings ─�
                                                                    │
             FastReID VeRi-776 embedding · CLIP zero-shot colour/type/features · EasyOCR plate
                                                                    │
-Description ─► ranked best matches ─► user SELECTS one ─► same vehicle in every camera ─► time span + frame
+Description ─► ranked best matches ─► user SELECTS one ─► same vehicle in every camera ─► location + real time + frame
+                                                   ▲
+              camera details: location + recording start  (real-world time = recording start + position in the video)
 ```
 
 | Step | Model (pretrained, used as published) | Source |
@@ -76,7 +79,25 @@ over time. One track is one **sighting**: the vehicle's camera, its first and la
 spread over time, and one full frame with the vehicle boxed (the frame where its crop is largest and sharpest).
 Tracks shorter than 4 detections are dropped as noise.
 
-### 3.2 Describing each sighting (`vtrace/features.py`, `vtrace/fastreid.py`)
+### 3.2 Camera details and real-world time (`vtrace/cameras.py`)
+A video file only knows positions in the video (00:40.80), not when or where it was recorded. Each camera therefore has
+**details**: a location (place name, optional latitude/longitude) and the **recording start** (date and time). A
+sighting's real-world time is the recording start plus its position in the video, so two cameras can be seconds,
+minutes or hours apart, and the route is ordered by real-world time. For uploads the user enters the details next to
+each video; all details can be edited on the *Cameras* page and are saved with the index.
+
+The demo videos carry no location or clock metadata, so their details are **curated** (Table 1): camA–camC are zones of
+one recording, so they share one clock and are placed a few tens of metres apart along one street; camD, a different
+road, is given a recording start 2.5 minutes later.
+
+| Camera | Location (curated) | Recording start (curated) |
+|---|---|---|
+| camA_west | Slovenska cesta, west of the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
+| camB_centre | Slovenska cesta, at the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
+| camC_east | Slovenska cesta, east of the crossing · Ljubljana | Wed 28 Oct 2026, 08:15:00 |
+| camD_other_road | Celovška cesta · Ljubljana | Wed 28 Oct 2026, 08:17:30 |
+
+### 3.3 Describing each sighting (`vtrace/features.py`, `vtrace/fastreid.py`)
 - **Re-ID embedding.** Each crop goes through the FastReID VeRi-776 network (ResNet-50 with IBN-a and non-local blocks,
   GeM pooling, BN-neck; 256×256 input); the four 2048-d embeddings are averaged and L2-normalised. FastReID is a large
   training framework, so `vtrace/fastreid.py` only re-declares the network so that the published checkpoint loads with
@@ -87,36 +108,41 @@ Tracks shorter than 4 detections are dropped as noise.
   the neutral "a photo of a car".
 - **Plate.** EasyOCR reads the lower part of the two largest crops; a plate is kept only if it is confidently read.
 
-### 3.3 Description → ranked matches (`vtrace/search.py`)
+### 3.4 Description → ranked matches (`vtrace/search.py`)
 Each field the user fills in gives every sighting a 0–1 score: colour and type (the CLIP probability of the requested
 value, relative to the most likely value), plate (wildcard-aware similarity; `?` = unknown character; a sighting whose
 plate could not be read gets a neutral 0.3), distinctive features and free text (CLIP prompt scores). The final score is
 the weighted mean over **only the fields provided** (plate 0.35, colour 0.30, type 0.25, features 0.10, text 0.10), so a
 missing field never counts against a vehicle. The 12 best sightings are shown.
 
-### 3.4 Selected match → where it was seen (`vtrace/reid.py`)
+### 3.5 Selected match → where it was seen (`vtrace/reid.py`)
 The similarity of two sightings is the cosine of their FastReID embeddings. For the selected sighting, V-Trace checks
 every other camera and takes that camera's most similar sighting. It is reported as the same vehicle only if
 - its similarity is at least **0.40** (chosen from the VeRi-776 score distributions, Section 5.1);
 - it beats the camera's second-best sighting by at least **0.08**. This is a ratio test (as in Lowe's SIFT matching):
   when two vehicles are almost equally similar, the answer is ambiguous and is left to the user;
-- when the videos were recorded at the same time (the demo cameras), it is within **10 s** of the selected sighting.
+- with the real-world time limit on, it is within **10 s** (adjustable from 5 s to 12 h) of the selected sighting in
+  real-world time. Cameras whose recording start is unknown are not time-limited.
 
-Each reported sighting is shown with its camera, time span, a crop and the full frame, and the route lists them in time
-order. For cameras with no confident match, the three closest vehicles are shown so the user can judge. All three
-settings can be changed in the app; uploaded videos are assumed to be recorded at different times (no time window).
+Each reported sighting is shown with its camera, location, real-world date and time span, position in the video, a crop
+and the full frame; the route lists them in real-world time order with the time between cameras (e.g. "+1.2 s",
+"+2 min 30 s"), and a map shows the camera locations. For cameras with no confident match, the three closest vehicles are shown so the user can judge. All three
+settings can be changed in the app; for uploads the time limit starts off, in case the cameras' clocks are not set.
 
-### 3.5 Streamlit application (`app.py`)
+### 3.6 Streamlit application (`app.py`)
 An admin sign-in (credentials in Streamlit secrets, compared in constant time) protects the app. The sidebar chooses
 **Demo videos** or **Upload new videos** (with a *Fast processing* switch) and lists the processed cameras. The Search
 page has three steps: *1 Describe the vehicle*, *2 Best matches* (cards with crop, camera, time span, colour/type,
-plate, score and **Select**), *3 Where this vehicle was seen* (route, then one row per sighting with time span, crop and
-frame). A *How it works* page lists the models and the benchmark numbers. The app opens in dark mode with the V-Trace
+plate, score and **Select**), *3 Where this vehicle was seen* (route with real-world times, one row per sighting with location,
+date/time, crop and frame, and a map). The *Cameras* page lists and edits every camera's location and recording start;
+uploads ask for them next to each video. A *How it works* page lists the models and the benchmark numbers. The app opens in dark mode with the V-Trace
 logo and palette. The demo cameras are bundled pre-processed (`demo_bundle/`) so the hosted app loads them instantly.
 
 ![Figure 1 – describe the vehicle and pick it from the ranked best matches](screenshots/search.png)
 
-![Figure 2 – where the selected vehicle was seen: camera, time span and a frame per sighting](screenshots/seen.png)
+![Figure 2 – where the selected vehicle was seen: camera, location, real-world time and a frame per sighting](screenshots/seen.png)
+
+![Figure 3 – the Cameras page: location and recording start of every camera](screenshots/cameras.png)
 
 ## 4. Technique group mapping
 
@@ -150,7 +176,7 @@ The demo uses a 46 s, 1080p street recording from Ljubljana (Wikimedia Commons, 
 exposure and colour cast, so a car on the near lane passes A → B → C and a car on the far lane C → B → A. A fourth
 camera (camD_other_road) is a different road whose vehicles never appear in A–C.
 
-![Figure 3 – the three demo camera zones cut from one street recording](figures/demo_zones.jpg)
+![Figure 4 – the three demo camera zones cut from one street recording](figures/demo_zones.jpg)
 
 Processing gives {{demo.tracklets_total}} sightings ({{demo.tracklets_by_camera}}). Because the three street cameras
 come from one recording, tracking the uncropped clip once at high resolution and mapping every zone sighting back onto it
@@ -162,7 +188,7 @@ reference tracker's own mistakes). {{demo.vehicles_in_2plus_cameras}} vehicles a
 |---|---|
 | Queries (sightings whose vehicle also appears in another camera) | {{demo.queries}} |
 | Rank-1 / Rank-5 / mAP, other cameras only | {{demo.Rank-1}}% / {{demo.Rank-5}}% / {{demo.mAP}}% |
-| Cameras reported that are correct (precision), with / without the 10 s window | {{demo.camera_precision}}% / {{demo.precision_nw}}% |
+| Cameras reported that are correct (precision), with / without the 10 s real-world window | {{demo.camera_precision}}% / {{demo.precision_nw}}% |
 | Cameras passed through that are reported (recall), with / without the window | {{demo.camera_recall}}% / {{demo.recall_nw}}% |
 | Queries wrongly reported in the distractor camera camD, with / without the window | {{demo.false_camD}}% / {{demo.false_camD_nw}}% |
 
@@ -170,7 +196,9 @@ reference tracker's own mistakes). {{demo.vehicles_in_2plus_cameras}} vehicles a
 40% of the reported cameras were correct and more than half of the queries were wrongly placed on the distractor road.
 Keeping only each camera's best sighting, adding the ratio test and the time window raised precision to
 {{demo.camera_precision}}% without any training. The cost is recall: for cameras without a confident match the user
-sees the closest candidates instead.
+sees the closest candidates instead. Part of the gain with the window comes from the curated clocks: camD's
+recording starts 2.5 minutes after camA–camC, so a 10 s window rules it out completely. The numbers without the window
+show what the Re-ID model and the ratio test achieve on their own.
 | Sightings that follow one vehicle only (tracking purity ≥ 95%) | {{demo.clean}}% |
 
 ## 6. Discussion and failure analysis
@@ -193,7 +221,8 @@ threshold) rather than making an identity claim.
 ## 7. Limitations and future work
 - The demo cameras are zones of one recording, not separate physical cameras; a multi-camera dataset such as CityFlow
   would be a stronger test.
-- Learned travel times between camera pairs would replace the fixed 10 s window.
+- The demo cameras' locations and clocks are curated; real deployments would read them from the camera system, and
+  learned travel times between camera locations would replace the single fixed time window.
 - A dedicated plate detector before OCR would make plate evidence usable at longer distances.
 - The pipeline reads files frame by frame, so live streams are a small change.
 

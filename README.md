@@ -5,7 +5,8 @@
 V-Trace processes short dash-cam / traffic-cam videos (one video = one camera) into *sightings*: every vehicle is
 detected, followed while it stays in view, and described. You then describe the vehicle you are looking for (colour,
 type, plate, distinctive features, free text), pick it from a ranked list of best matches, and V-Trace shows every
-camera it was seen in, with the time span and one frame from each sighting.
+camera it was seen in, with the camera's location, the real-world date and time of each sighting and one frame
+from it.
 
 V-Trace uses **only pretrained, published models**. Nothing is trained for this project.
 
@@ -49,13 +50,19 @@ Open http://localhost:8501 and sign in. The app opens in dark mode (⋮ → Sett
 
 1. **Videos (sidebar).** *Demo videos* are already processed: four cameras, three along one street (so the same
    cars pass A → B → C) and one on another road. *Upload new videos* takes your own short clips; **Process videos**
-   runs detection, tracking and description (*Fast processing* = every 5th frame, no plate OCR).
+   runs detection, tracking and description (*Fast processing* = every 5th frame, no plate OCR). For each upload
+   enter the camera's **location** and **recording start** (date + time): a sighting's real-world time = recording
+   start + its position in the video, so cameras can be seconds, minutes or hours apart.
 2. **Describe the vehicle.** Colour, type, plate (`?` = unknown character), distinctive features, free text. Any
    field can be left empty. **Search** returns the best-matching sightings, ranked.
 3. **Select** the right one.
-4. **Where this vehicle was seen** lists every camera: the time span, a crop and one full frame of each sighting, plus
-   the route in time order. Cameras where nothing passed the Re-ID threshold show the closest vehicle and its score.
-   The threshold is in the sidebar under *Settings*.
+4. **Where this vehicle was seen** lists every camera: location, real-world date and time span, a crop and one full
+   frame of each sighting, the route in real-world time order (with the time between cameras) and a map. Cameras with no
+   confident match show the closest vehicles. The Re-ID threshold and the real-world time limit are under *Settings*.
+
+The **Cameras** page lists and edits every camera's location and recording start. The demo videos have no such
+metadata, so their details are curated (`vtrace/cameras.py`): camA–camC on one street with the same clock, camD on
+another road 2.5 minutes later.
 
 The **How it works** page lists the models and the benchmark numbers.
 
@@ -97,7 +104,8 @@ V-Trace/
 │   ├── video.py           YOLO11 detection + ByteTrack tracking → sightings, crops, evidence frames
 │   ├── fastreid.py        loads the FastReID VeRi-776 checkpoint with plain PyTorch, crop → embedding
 │   ├── features.py        Re-ID embedding, CLIP zero-shot colour/type/features, EasyOCR plate
-│   ├── index.py           searchable index of sightings (save/load, demo bundle)
+│   ├── cameras.py         camera location + recording start → real-world time of each sighting
+│   ├── index.py           searchable index of sightings and camera details (save/load, demo bundle)
 │   ├── search.py          description → ranked sightings
 │   ├── reid.py            selected sighting → same vehicle in every camera
 │   └── plate.py           plate normalisation and wildcard matching

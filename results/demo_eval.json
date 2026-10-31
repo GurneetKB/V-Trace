@@ -19,10 +19,10 @@
   "mAP": 38.04976399361768,
   "threshold": 0.4,
   "margin": 0.08,
-  "same_clock": {
-   "camera_precision_%": 71.42857142857143,
+  "real_time_window": {
+   "camera_precision_%": 80.64516129032258,
    "camera_recall_%": 32.05128205128205,
-   "queries_wrongly_seen_in_camD_%": 7.2727272727272725
+   "queries_wrongly_seen_in_camD_%": 0.0
   },
   "no_time_window": {
    "camera_precision_%": 53.125,

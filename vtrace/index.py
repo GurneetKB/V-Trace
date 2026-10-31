@@ -6,7 +6,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 
-from . import config
+from . import cameras as cams, config
 from .video import process_video
 
 INDEX_FILE = config.INDEX_DIR / "index.pkl"
@@ -16,6 +16,7 @@ class VehicleIndex:
     def __init__(self, tracklets=None):
         self.tracklets = tracklets or []
         self.processed = {}  # video name -> signature of the file + settings it was processed with
+        self.cameras = {}    # video name -> real-world details set by the user (vtrace/cameras.py)
 
     # ---------- persistence ----------
     @classmethod
@@ -23,6 +24,7 @@ class VehicleIndex:
         if path.exists():
             index = joblib.load(path)
             index.__dict__.setdefault("processed", {})  # indexes saved before caching existed
+            index.__dict__.setdefault("cameras", {})
             return index
         return cls()
 
@@ -83,8 +85,18 @@ class VehicleIndex:
         return len(tracklets)
 
     def subset(self, videos):
-        """A view holding only the given videos (what the user is currently working with)."""
-        return VehicleIndex([t for t in self.tracklets if t["video"] in set(videos)])
+        """A view holding only the given videos (what the user is currently working with), with each sighting's
+        camera location and real-world time attached."""
+        view = VehicleIndex([dict(t) for t in self.tracklets if t["video"] in set(videos)])
+        view.cameras = self.cameras
+        cams.apply(view.tracklets, self.cameras)
+        return view
+
+    def camera(self, video):
+        return cams.info(self.cameras, video)
+
+    def set_camera(self, video, **details):
+        self.cameras[video] = self.camera(video) | details
 
     # ---------- access ----------
     def get(self, uid):

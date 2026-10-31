@@ -13,8 +13,8 @@ with the assessor account provided with it. The four demo cameras load automatic
 2. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and set a username and password.
 3. `.venv\Scripts\python -m streamlit run app.py`, open http://localhost:8501 and sign in.
 
-The app has two pages (left sidebar): **Search** and **How it works**. It opens in dark mode; switch with ⋮ (top
-right) → Settings → Theme.
+The app has three pages (left sidebar): **Search**, **Cameras** and **How it works**. It opens in dark mode; switch
+with ⋮ (top right) → Settings → Theme.
 
 ## 2. Presentation demo (about 4 minutes)
 
@@ -22,35 +22,51 @@ right) → Settings → Theme.
 cameras along one street, so the same cars pass A → B → C (near lane) or C → B → A (far lane). `camD_other_road` is a
 different road whose vehicles never appear in A–C.
 
+**Real-world time and location.** Every camera has a location and a recording start (**Cameras** page); a sighting's
+real-world time = recording start + its position in the video. The demo videos carry no such metadata, so their details
+are curated: camA–camC on Slovenska cesta, Ljubljana, all starting **Wed 28 Oct 2026, 08:15:00** (same clock), and camD
+on Celovška cesta, starting **08:17:30** (2.5 min later).
+
 The Search page has three steps: **1 Describe the vehicle**, **2 Best matches**, **3 Where this vehicle was seen**.
 
 **Scenario A – find a red car and trace it through three cameras (main demo)**
 1. **1 Describe the vehicle**: Colour **red**, Type **suv**, click **Search**.
-2. **2 Best matches**: #3 is a red Citroën in **camB_centre, 00:42.00 – 00:43.56**. Click **Select**.
+2. **2 Best matches**: #3 is a red Citroën in **camB_centre, 08:15:42.0 – 08:15:43.5**. Click **Select**.
 3. *Expect:* **3 Where this vehicle was seen** shows
-   **Route: camA_west (00:40.80) → camB_centre (00:42.00) → camC_east (00:43.56)**,
-   with one row per camera: the time span, a crop and the full frame with the car boxed. camA scores 0.67 and camC 0.51.
-   **camD_other_road** is listed under *Not seen in* ("no vehicle in the time window").
+   **Route: camA_west 08:15:40.8 → (+1.2 s) camB_centre 08:15:42.0 → (+1.6 s) camC_east 08:15:43.5**,
+   with one row per camera: the location, the real-world date and time span, the time in the video, a crop and the full
+   frame with the car boxed, plus a map of the camera locations. camA scores 0.67 and camC 0.51.
+   **camD_other_road** is listed under *Not seen in* ("no vehicle within 10.0 s"): it was recorded minutes later.
 
 **Scenario B – the same search, an ambiguous result**
-- In the same results, select #2 (the same red Citroën in **camA_west, 00:40.80**).
+- In the same results, select #2 (the same red Citroën in **camA_west, 08:15:40.8**).
 - *Expect:* camB_centre and camC_east are listed under *Not seen in*, each with its three closest vehicles. In camB the
-  true car (00:42.00) is first with 0.67, but another red car (00:39.96) scores 0.62, too close to call, so the ratio
+  true car (08:15:42.0) is first with 0.67, but another red car (08:15:39.9) scores 0.62, too close to call, so the ratio
   test leaves the choice to the user. Good talking point: the system shows evidence, it does not claim an identity.
   (Searching from the camB sighting, as in Scenario A, gives a clear answer because camB's view of the car is sharper.)
 
-**Scenario C – upload videos**
-- Sidebar → **Upload new videos**, add two or three short clips (10–30 s), keep **Fast processing** on, click
-  **Process videos**. Each clip becomes one camera; describe and select a vehicle as above. Uploaded videos are assumed
-  to be recorded at different times, so the time window is off (Settings).
+**Scenario C – real-world time decides (cameras a minute apart)**
+- **Cameras** page: change camC_east's recording start to **08:14:00** (1 min earlier) and click **Save camera details**.
+- Repeat Scenario A: camC's sighting is now at 08:14:43.5, about a minute before the others, so with the 10 s limit it
+  is *Not seen*. Sidebar → Settings → *Max time between cameras* **1 min 00 s**: it is matched again and the route is
+  re-ordered in real-world time (camC → camA → camB). camD (recorded from 08:17:30) stays out. Set camC back to
+  08:15:00 afterwards.
+
+**Scenario D – upload videos**
+- Sidebar → **Upload new videos**, add two or three short clips (10–30 s). For each clip enter its **location**,
+  **recording date** and **start time** (latitude/longitude optional), keep **Fast processing** on, click
+  **Process videos**. Each clip becomes one camera; describe and select a vehicle as above. For uploads the real-world
+  time limit is off until you turn it on (Settings), in case the clocks are not set; details can be edited later on the
+  **Cameras** page.
 
 **Talking points while it runs**
 - Every model is pretrained and used as published: YOLO11 + ByteTrack (sightings), CLIP zero-shot (description),
   EasyOCR (plates), and the FastReID VeRi-776 Re-ID model from the VeRi authors' team (same vehicle across cameras).
-- A sighting = all frames in which one vehicle is seen continuously in one camera.
+- A sighting = all frames in which one vehicle is seen continuously in one camera; its real-world time = camera
+  recording start + its position in the video, so cameras can be seconds, minutes or hours apart.
 - Step 1 uses only the fields you fill in; a missing field is ignored rather than counted as a mismatch.
-- A camera counts as "seen" only when its best sighting is similar enough (≥ 0.40) and clearly better than the
-  next one; for demo videos it must also be within 10 s.
+- A camera counts as "seen" only when its best sighting is similar enough (≥ 0.40), clearly better than the next one
+  and, with the time limit on, close enough in real-world time (default 10 s).
 - **How it works** page: the models and the VeRi-776 benchmark numbers.
 
 ## 3. Things to try (assessors)
@@ -61,7 +77,8 @@ The Search page has three steps: **1 Describe the vehicle**, **2 Best matches**,
 | Type a partial plate with wildcards, e.g. `SGX1?3?` | Search 1 | wildcard plate matching (plates are rarely readable in the demo footage, so unread plates get a neutral score) |
 | Pick a distinctive feature or type free text, e.g. "bus" | Search 1 | CLIP text–image scoring |
 | Select different vehicles from the results | Search 3 | per-camera sightings, or the closest candidates when there is no confident match |
-| Change the threshold or turn off *Videos were recorded at the same time* | sidebar → Settings | stricter / looser matching; the time window |
+| Change the threshold, the *Max time between cameras* or turn off *Limit by real-world time* | sidebar → Settings | stricter / looser matching; the real-world time window |
+| Edit a camera's location or recording start | Cameras page | real-world times and the route update |
 | *Upload new videos* | sidebar | the full pipeline on new footage |
 
 **Known limitations to keep in mind:** plates are not readable at this camera distance; colour labels are unreliable

@@ -7,17 +7,20 @@ Run with:  streamlit run app.py
   2 Describe   - colour, type, plate, distinctive features, free text  -> ranked best matches (CLIP zero-shot + OCR)
   3 Select     - pick the right vehicle
   4 Seen in    - every camera where the pretrained FastReID (VeRi-776) model finds the same vehicle,
-                 with the time span and one frame from each sighting
+                 with its location, real-world time and one frame from each sighting
+  Cameras      - location and recording start of every camera (real-world time = start + position in the video)
 """
 import hmac
 import json
 import os
+from datetime import datetime
 
 import numpy as np
+import pandas as pd
 import streamlit as st
 from PIL import Image
 
-from vtrace import config, reid, search
+from vtrace import cameras as cams, config, reid, search
 from vtrace.index import VehicleIndex
 from vtrace.video import fmt_time
 
@@ -109,13 +112,18 @@ def load_demo_cameras(index):
     return [c for c in DEMO_CAMERAS if c in index.videos()]
 
 
-def set_cameras(names, same_clock):
-    """Make `names` the videos searched in this session; earlier results no longer apply. The demo cameras are cut
-    from one recording (same clock); uploaded videos are assumed to be recorded at different times."""
+def set_cameras(names, time_limit):
+    """Make `names` the videos searched in this session; earlier results no longer apply. For the demo cameras the
+    real-world time window is on; for uploads it is off until the user turns it on (their clocks may not be set)."""
     st.session_state.active = list(names)
-    st.session_state.same_clock = same_clock
-    for key in ("results", "query"):
+    st.session_state.time_limit = time_limit
+    for key in ("results", "query", "view_for"):
         st.session_state.pop(key, None)
+
+
+def refresh_view():
+    """Rebuild the view after camera details change (real-world times are attached when the view is made)."""
+    st.session_state.pop("view_for", None)
 
 
 index = get_index()                                   # on-disk cache of every video ever processed
@@ -125,7 +133,8 @@ active = st.session_state.active
 if st.session_state.get("view_for") != active:
     st.session_state.view, st.session_state.view_for = index.subset(active), list(active)
 view = st.session_state.view                          # all searching happens on these videos only
-for key, value in (("threshold", config.MATCH_THRESHOLD), ("same_clock", True), ("max_gap", config.MAX_GAP_S)):
+GAP_CHOICES = [5, 10, 30, 60, 300, 900, 3600, 3 * 3600, 12 * 3600]       # seconds
+for key, value in (("threshold", config.MATCH_THRESHOLD), ("time_limit", True), ("max_gap", config.MAX_GAP_S)):
     st.session_state.setdefault(key, value)
 
 
@@ -145,8 +154,19 @@ def thumb(path, w=320, h=240):
     return canvas
 
 
-def when(t):
+def when(t, date=True):
+    """Real-world time span of a sighting ('Tue 28 Oct 2026 · 08:15:40.8 – 08:15:42.2'), or video time if unknown."""
+    if t.get("real_start") is None:
+        return f"video {in_video(t)}"
+    return f"{cams.fmt(t['real_start'], date)} – {cams.fmt(t['real_end'], False)}"
+
+
+def in_video(t):
     return f"{fmt_time(t['start_t'])} – {fmt_time(t['end_t'])}"
+
+
+def place(t):
+    return t.get("location") or "location not set"
 
 
 def crop(t):
@@ -154,19 +174,34 @@ def crop(t):
 
 
 # ------------------------------------------------------------------ sidebar: which videos
-def process(files, fast):
+def camera_form(name, key):
+    """Location + recording start inputs for one uploaded video. Returns its camera details."""
+    cam = index.camera(name)
+    t0 = cams.start_time(cam) or datetime.now().replace(microsecond=0)
+    loc = st.text_input("Location", cam["location"], key=f"loc_{key}", placeholder="e.g. Orchard Rd / Scotts Rd junction")
+    d, c = st.columns(2)
+    day = d.date_input("Recording date", t0.date(), key=f"day_{key}")
+    clock = c.time_input("Start time", t0.time(), step=1, key=f"clock_{key}")
+    la, lo = st.columns(2)
+    lat = la.number_input("Latitude", value=cam["lat"], format="%.5f", key=f"lat_{key}", placeholder="optional")
+    lon = lo.number_input("Longitude", value=cam["lon"], format="%.5f", key=f"lon_{key}", placeholder="optional")
+    return {"location": loc.strip(), "lat": lat, "lon": lon, "start": datetime.combine(day, clock).isoformat()}
+
+
+def process(files, fast, details):
     stride, use_ocr = (5, False) if fast else (config.FRAME_STRIDE, config.ENABLE_OCR)
     names = []
     for f in files:
         dest = config.VIDEO_DIR / f.name
         dest.write_bytes(f.getbuffer())
+        index.set_camera(dest.stem, **details[f.name])
         if not index.is_processed(dest, stride, use_ocr):
             bar = st.progress(0.0, text=f"Processing {f.name}: detecting, tracking and describing vehicles")
             index.add_video(dest, get_extractor(), stride=stride, read_plate=use_ocr,
                             progress=lambda x, b=bar: b.progress(min(x, 1.0)))
         names.append(dest.stem)
     index.save()
-    set_cameras(names, same_clock=False)
+    set_cameras(names, time_limit=False)
 
 
 def sidebar():
@@ -176,20 +211,25 @@ def sidebar():
         if source == "Demo videos":
             demo = load_demo_cameras(index)
             if active != demo:
-                set_cameras(demo, same_clock=True)
+                set_cameras(demo, time_limit=True)
                 st.rerun()
         else:
             files = st.file_uploader("Short dash-cam / traffic-cam clips (one file = one camera)", type=VIDEO_TYPES,
                                      accept_multiple_files=True)
+            details = {}
+            for i, f in enumerate(files or []):
+                with st.expander(f"{f.name}: location & recording start", expanded=True):
+                    details[f.name] = camera_form(f.name.rsplit(".", 1)[0], f"{i}_{f.name}")
             fast = st.toggle("Fast processing", value=True,
                              help="Every 5th frame without plate OCR (about 3× quicker). Off: every 3rd frame with OCR.")
             if st.button("Process videos", type="primary", disabled=not files, width="stretch"):
-                process(files, fast)
+                process(files, fast, details)
                 st.rerun()
 
         st.markdown(f"**Processed cameras** · {len(view)} vehicle sightings")
         for v in active:
-            st.markdown(f"- {v} · {sum(t['video'] == v for t in view.tracklets)}")
+            st.markdown(f"- **{v}** · {sum(t['video'] == v for t in view.tracklets)}  \n"
+                        f"  {index.camera(v)['location'] or 'location not set'}")
         if not active:
             st.caption("Nothing processed yet.")
 
@@ -197,10 +237,11 @@ def sidebar():
             st.slider("Same-vehicle threshold (Re-ID similarity)", 0.2, 0.9, step=0.05, key="threshold",
                       help="The best sighting in another camera counts as the selected vehicle when its FastReID "
                            "similarity is at least this value and clearly above the camera's next-best sighting.")
-            st.toggle("Videos were recorded at the same time", key="same_clock",
-                      help="Then a vehicle can only reappear within a few seconds in another camera. Turn off for "
-                           "videos recorded at different times.")
-            st.slider("Max seconds between cameras", 2, 60, key="max_gap", disabled=not st.session_state.same_clock)
+            st.toggle("Limit by real-world time", key="time_limit",
+                      help="A vehicle can only reappear in another camera within this time (real-world time = the "
+                           "camera's recording start + position in the video; set on the Cameras page).")
+            st.select_slider("Max time between cameras", GAP_CHOICES, key="max_gap", format_func=cams.fmt_gap,
+                             disabled=not st.session_state.time_limit)
         st.divider()
         st.caption(f"Signed in as **{st.session_state.admin_user}**")
         if st.button("Sign out", width="stretch"):
@@ -237,9 +278,10 @@ def matches():
         for col, (rank, (score, t, _)) in zip(st.columns(6), enumerate(results[start:start + 6], start + 1)):
             with col.container(border=True):
                 st.image(crop(t), width="stretch")
-                st.markdown(f"**#{rank} · {t['camera']}**  \n{when(t)}")
-                st.caption(f"{top_label(t['color_probs'], config.COLORS)} · {top_label(t['type_probs'], config.TYPES)}"
-                           f"{' · ' + t['plate'] if t.get('plate') else ''} · match {score:.0%}")
+                st.markdown(f"**#{rank} · {t['camera']}**  \n🕒 {when(t, date=False)}")
+                st.caption(f"📍 {place(t)}  \n{top_label(t['color_probs'], config.COLORS)} · "
+                           f"{top_label(t['type_probs'], config.TYPES)}{' · ' + t['plate'] if t.get('plate') else ''}"
+                           f" · match {score:.0%}")
                 selected = st.session_state.get("query") == t["uid"]
                 st.button("✓ Selected" if selected else "Select", key=f"sel_{t['uid']}", width="stretch",
                           type="primary" if selected else "secondary",
@@ -248,12 +290,19 @@ def matches():
 
 def seen_in(q):
     st.subheader("3 · Where this vehicle was seen")
-    gap = st.session_state.max_gap if st.session_state.same_clock else None
+    gap = st.session_state.max_gap if st.session_state.time_limit else None
     seen = reid.where_seen(view, q, st.session_state.threshold, max_gap_s=gap)
     route = reid.route(seen)
-    st.markdown("**Route:** " + "  →  ".join(f"{t['camera']} ({fmt_time(t['start_t'])})" for t in route))
-    st.caption(f"Seen in {len(route)} of {len(seen)} cameras. Similarity is the FastReID (VeRi-776) Re-ID score "
-               "against the selected vehicle.")
+    steps = []
+    for k, t in enumerate(route):
+        hop = ""
+        if k and t.get("real_start") and route[k - 1].get("real_start"):
+            hop = f"(+{cams.fmt_gap((t['real_start'] - route[k - 1]['real_start']).total_seconds())}) "
+        clock = cams.fmt(t["real_start"], False) if t.get("real_start") else f"video {fmt_time(t['start_t'])}"
+        steps.append(f"{hop}**{t['camera']}** {clock}")
+    st.markdown("**Route:** " + "  →  ".join(steps))
+    st.caption(f"Seen in {len(route)} of {len(seen)} cameras. Times are real-world (camera recording start + position "
+               "in the video). Similarity is the FastReID (VeRi-776) Re-ID score against the selected vehicle.")
 
     for t in route:
         score = seen[t["video"]]["match"][0]
@@ -261,10 +310,16 @@ def seen_in(q):
             a, b, c = st.columns([1.3, 1, 1.7], vertical_alignment="center")
             with a:
                 st.markdown(f"#### {t['camera']}")
-                st.markdown(f"🕒 **{when(t)}**  \n({t['end_t'] - t['start_t']:.1f} s on camera)")
+                st.markdown(f"📍 {place(t)}")
+                st.markdown(f"🕒 **{when(t)}**  \n{t['end_t'] - t['start_t']:.1f} s on camera · video {in_video(t)}")
                 st.caption("🎯 the vehicle you selected" if t["uid"] == q["uid"] else f"✅ same vehicle · similarity {score:.2f}")
             b.image(crop(t), width="stretch")
-            c.image(t["frame_path"], width="stretch", caption=f"{t['camera']} at {fmt_time(t['best_t'])}")
+            shot = cams.fmt(t["real_best"]) if t.get("real_best") else f"video {fmt_time(t['best_t'])}"
+            c.image(t["frame_path"], width="stretch", caption=f"{t['camera']} · {shot}")
+    pts = [{"lat": t["lat"], "lon": t["lon"]} for t in route if t.get("lat") is not None and t.get("lon") is not None]
+    if pts:
+        st.markdown("**Camera locations on the route**")
+        st.map(pd.DataFrame(pts), size=12, zoom=16)
 
     missing = [(v, s) for v, s in seen.items() if not s["match"]]
     if missing:
@@ -272,14 +327,14 @@ def seen_in(q):
         for video, s in missing:
             with st.container(border=True):
                 a, *slots = st.columns([1.2, 1, 1, 1], vertical_alignment="center")
-                a.markdown(f"**{video}**")
+                a.markdown(f"**{video}**  \n📍 {index.camera(video)['location'] or 'location not set'}")
                 if not s["candidates"]:
-                    a.caption("no vehicle in the time window")
+                    a.caption(f"no vehicle within {cams.fmt_gap(gap)} of the selected sighting")
                     continue
                 a.caption("no confident match; closest vehicles →")
                 for slot, (score, t) in zip(slots, s["candidates"]):
                     slot.image(crop(t), width="stretch")
-                    slot.caption(f"{when(t)} · similarity {score:.2f}")
+                    slot.caption(f"{when(t, date=False)} · similarity {score:.2f}")
 
 
 def search_page():
@@ -294,6 +349,46 @@ def search_page():
     uids = {t["uid"] for t in view.tracklets}
     if st.session_state.get("query") in uids:
         seen_in(view.get(st.session_state.query))
+
+
+# ------------------------------------------------------------------ cameras page
+def cameras_page():
+    st.title("Cameras")
+    st.caption("Where each camera is and when its video started recording. A sighting's real-world time = the "
+               "recording start + its position in the video, so cameras can be seconds, minutes or hours apart.")
+    if not active:
+        st.info("No processed videos.")
+        return
+    if any(v in cams.DEMO for v in active):
+        st.caption("ℹ️ The demo videos have no location or clock metadata, so their details are curated for the demo "
+                   "(camA–camC: one street, same clock; camD: another road, recorded 2.5 min later). Edit them here "
+                   "if needed.")
+    rows = []
+    for v in active:
+        cam = index.camera(v)
+        rows.append({"camera": v, "location": cam["location"], "latitude": cam["lat"], "longitude": cam["lon"],
+                     "recording start": cams.start_time(cam),
+                     "sightings": sum(t["video"] == v for t in view.tracklets)})
+    edited = st.data_editor(
+        pd.DataFrame(rows), hide_index=True, width="stretch", disabled=["camera", "sightings"], key="camera_editor",
+        column_config={"recording start": st.column_config.DatetimeColumn(format="ddd D MMM YYYY, HH:mm:ss", step=1),
+                       "latitude": st.column_config.NumberColumn(format="%.5f"),
+                       "longitude": st.column_config.NumberColumn(format="%.5f")})
+    if st.button("Save camera details", type="primary"):
+        for r in edited.to_dict("records"):
+            start = r["recording start"]
+            index.set_camera(r["camera"], location=r["location"] or "",
+                             lat=None if pd.isna(r["latitude"]) else float(r["latitude"]),
+                             lon=None if pd.isna(r["longitude"]) else float(r["longitude"]),
+                             start=None if pd.isna(start) else pd.Timestamp(start).to_pydatetime().isoformat())
+        index.save()
+        refresh_view()
+        st.session_state.pop("query", None)
+        st.rerun()
+    pts = [{"lat": r["latitude"], "lon": r["longitude"]} for r in rows
+           if r["latitude"] is not None and r["longitude"] is not None]
+    if pts:
+        st.map(pd.DataFrame(pts), size=25, zoom=13)
 
 
 # ------------------------------------------------------------------ about page
@@ -335,4 +430,5 @@ videos recorded at the same time, it is within 10 s.
 
 sidebar()
 st.navigation([st.Page(search_page, title="Search", icon=":material/search:", default=True),
+               st.Page(cameras_page, title="Cameras", icon=":material/videocam:"),
                st.Page(about_page, title="How it works", icon=":material/info:")]).run()
