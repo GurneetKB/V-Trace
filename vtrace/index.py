@@ -7,7 +7,6 @@ import joblib
 import numpy as np
 
 from . import config
-from .som import VehicleSOM
 from .video import process_video
 
 INDEX_FILE = config.INDEX_DIR / "index.pkl"
@@ -16,7 +15,6 @@ INDEX_FILE = config.INDEX_DIR / "index.pkl"
 class VehicleIndex:
     def __init__(self, tracklets=None):
         self.tracklets = tracklets or []
-        self.som = None
         self.processed = {}  # video name -> signature of the file + settings it was processed with
 
     # ---------- persistence ----------
@@ -84,18 +82,9 @@ class VehicleIndex:
         self.tracklets.extend(tracklets)
         return len(tracklets)
 
-    def fit_som(self):
-        if len(self.tracklets) >= 4:
-            self.som = VehicleSOM().fit(self.matrix("app_emb"))
-        else:
-            self.som = None
-        return self.som
-
     def subset(self, videos):
-        """A view holding only the given videos (what the user is currently working with), with its own SOM."""
-        view = VehicleIndex([t for t in self.tracklets if t["video"] in set(videos)])
-        view.fit_som()
-        return view
+        """A view holding only the given videos (what the user is currently working with)."""
+        return VehicleIndex([t for t in self.tracklets if t["video"] in set(videos)])
 
     # ---------- access ----------
     def get(self, uid):

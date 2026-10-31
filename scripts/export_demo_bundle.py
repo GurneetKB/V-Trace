@@ -34,7 +34,6 @@ def main():
     shutil.rmtree(config.DEMO_BUNDLE, ignore_errors=True)
     out = []
     for t in (t for t in index.tracklets if t["video"] in CAMERAS):
-        t = {k: v for k, v in t.items() if k != "metric_emb"}            # recomputed from the embeddings on load
         crops = []
         for src in t["crop_paths"]:
             dst = config.DEMO_BUNDLE / "crops" / t["video"] / Path(src).name

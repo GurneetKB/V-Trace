@@ -3,7 +3,7 @@
     python scripts/make_submission.py
 
 Creates submission/Group21_V-Trace_Submission.zip with:
-  code/          every git-tracked file (source, tests, docs, results, trained models, demo bundle)
+  code/          every git-tracked file (source, tests, docs, results, demo bundle; pretrained weights download on first run)
   datasets/      the four demo camera videos (VeRi-776 must be requested from its authors; see README)
   deliverables/  final report (.docx/.pdf), final + first presentation slides, demo guide, video (*.mp4) if present
 """

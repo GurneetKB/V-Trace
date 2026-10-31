@@ -1,21 +1,19 @@
-"""V-Trace Streamlit app: find a vehicle, see where else it was seen, follow its route.
+"""V-Trace Streamlit app: describe a vehicle, pick it from the ranked matches, see every camera it was seen in.
 
 Run with:  streamlit run app.py
 
-Two pages:
-  Search    - 1 find the vehicle (describe it, or pick it from a camera)
-              2 where else was it seen (ranked matches per camera, confirm with one click)
-              3 its route across cameras (timeline of confirmed sightings)
-  Analysis  - benchmark results (VeRi-776), SOM, manual tracking check, matching settings explained
+  1 Videos     - the demo cameras already on the platform, or upload your own short clips (one video = one camera);
+                 each video is processed into tracklets (YOLO11 detection + ByteTrack tracking)
+  2 Describe   - colour, type, plate, distinctive features, free text  -> ranked best matches (CLIP zero-shot + OCR)
+  3 Select     - pick the right vehicle
+  4 Seen in    - every camera where the pretrained FastReID (VeRi-776) model finds the same vehicle,
+                 with the time span and one frame from each sighting
 """
 import hmac
 import json
 import os
-from collections import defaultdict
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import streamlit as st
 from PIL import Image
 
@@ -67,8 +65,8 @@ def require_admin():
     _, mid, _ = st.columns([1, 1.2, 1])
     with mid:
         st.image(logo(), width="stretch")
-        st.markdown(":green[**DESCRIBE → SEARCH → CONFIRM → RE-IDENTIFY**]")
-        st.caption("Multi-attribute vehicle search & re-identification · admin access only")
+        st.markdown(":green[**DESCRIBE → RANK → SELECT → TRACE**]")
+        st.caption("Vehicle search & re-identification across cameras · admin access only")
         user, pwd = admin_credentials()
         if not (user and pwd):
             st.error("No admin account is configured. Add an `[admin]` section with `username` and `password` "
@@ -90,15 +88,10 @@ require_admin()
 
 
 # ------------------------------------------------------------------ data
-@st.cache_resource(show_spinner="Loading vision models (first run downloads weights)...")
+@st.cache_resource(show_spinner="Loading the pretrained models (first run downloads the weights)...")
 def get_extractor():
     from vtrace.features import FeatureExtractor
     return FeatureExtractor()
-
-
-@st.cache_resource
-def get_rf():
-    return reid.load_rf()
 
 
 def get_index():
@@ -116,30 +109,24 @@ def load_demo_cameras(index):
     return [c for c in DEMO_CAMERAS if c in index.videos()]
 
 
-def set_cameras(names):
-    """Make `names` the videos searched in this session; earlier selections no longer apply."""
+def set_cameras(names, same_clock):
+    """Make `names` the videos searched in this session; earlier results no longer apply. The demo cameras are cut
+    from one recording (same clock); uploaded videos are assumed to be recorded at different times."""
     st.session_state.active = list(names)
-    for key in ("stage1", "query", "hops"):
+    st.session_state.same_clock = same_clock
+    for key in ("results", "query"):
         st.session_state.pop(key, None)
 
 
-index = get_index()                                   # on-disk cache of every video ever processed (hidden)
+index = get_index()                                   # on-disk cache of every video ever processed
 if "active" not in st.session_state:                 # start with the demo cameras loaded
     st.session_state.active = load_demo_cameras(index)
 active = st.session_state.active
-if "view" not in st.session_state or st.session_state.get("view_for") != active:
+if st.session_state.get("view_for") != active:
     st.session_state.view, st.session_state.view_for = index.subset(active), list(active)
-view = st.session_state.view                          # all searching / Re-ID happens on these videos only
-rf = get_rf()
-
-# matching settings (sidebar, shared by both pages)
-SETTINGS = {"method": "random forest" if rf else "weighted fusion", "same_clock": True, "gap": 10, "min_score": 0.5}
-for k, v in SETTINGS.items():
-    st.session_state.setdefault(f"set_{k}", v)
-
-
-def setting(name):
-    return st.session_state[f"set_{name}"]
+view = st.session_state.view                          # all searching happens on these videos only
+for key, value in (("threshold", config.MATCH_THRESHOLD), ("same_clock", True), ("max_gap", config.MAX_GAP_S)):
+    st.session_state.setdefault(key, value)
 
 
 def top_label(probs, vocab):
@@ -159,51 +146,61 @@ def thumb(path, w=320, h=240):
 
 
 def when(t):
-    return f"{fmt_time(t['start_t'])}–{fmt_time(t['end_t'])}"
+    return f"{fmt_time(t['start_t'])} – {fmt_time(t['end_t'])}"
 
 
-# ------------------------------------------------------------------ sidebar
+def crop(t):
+    return thumb(t["crop_paths"][len(t["crop_paths"]) // 2])
+
+
+# ------------------------------------------------------------------ sidebar: which videos
+def process(files, fast):
+    stride, use_ocr = (5, False) if fast else (config.FRAME_STRIDE, config.ENABLE_OCR)
+    names = []
+    for f in files:
+        dest = config.VIDEO_DIR / f.name
+        dest.write_bytes(f.getbuffer())
+        if not index.is_processed(dest, stride, use_ocr):
+            bar = st.progress(0.0, text=f"Processing {f.name}: detecting, tracking and describing vehicles")
+            index.add_video(dest, get_extractor(), stride=stride, read_plate=use_ocr,
+                            progress=lambda x, b=bar: b.progress(min(x, 1.0)))
+        names.append(dest.stem)
+    index.save()
+    set_cameras(names, same_clock=False)
+
+
 def sidebar():
     with st.sidebar:
         st.image(logo(), width="stretch")
-        st.markdown(f"**Cameras in this search** · {len(view)} vehicles")
-        for v in active:
-            st.markdown(f"- {v} · {sum(t['video'] == v for t in view.tracklets)} vehicles")
-        if not active:
-            st.caption("No cameras loaded yet.")
-
-        with st.expander("Use your own videos"):
-            files = st.file_uploader("Camera videos (one file = one camera)", type=VIDEO_TYPES,
+        source = st.radio("Videos", ["Demo videos", "Upload new videos"], key="source")
+        if source == "Demo videos":
+            demo = load_demo_cameras(index)
+            if active != demo:
+                set_cameras(demo, same_clock=True)
+                st.rerun()
+        else:
+            files = st.file_uploader("Short dash-cam / traffic-cam clips (one file = one camera)", type=VIDEO_TYPES,
                                      accept_multiple_files=True)
             fast = st.toggle("Fast processing", value=True,
-                             help="Analyse every 5th frame without plate OCR (about 3× quicker). "
-                                  "Off: every 3rd frame with plate OCR.")
+                             help="Every 5th frame without plate OCR (about 3× quicker). Off: every 3rd frame with OCR.")
             if st.button("Process videos", type="primary", disabled=not files, width="stretch"):
-                stride, use_ocr = (5, False) if fast else (config.FRAME_STRIDE, config.ENABLE_OCR)
-                names = []
-                for f in files:
-                    dest = config.VIDEO_DIR / f.name
-                    dest.write_bytes(f.getbuffer())
-                    if not index.is_processed(dest, stride, use_ocr):
-                        bar = st.progress(0.0, text=f"Processing {f.name}")
-                        index.add_video(dest, get_extractor(), stride=stride, read_plate=use_ocr,
-                                        progress=lambda x, b=bar: b.progress(min(x, 1.0)))
-                    names.append(dest.stem)
-                index.save()
-                set_cameras(names)
-                st.rerun()
-            if active != load_demo_cameras(index) and st.button("Back to the demo cameras", width="stretch"):
-                set_cameras(load_demo_cameras(index))
+                process(files, fast)
                 st.rerun()
 
-        with st.expander("Matching settings"):
-            st.selectbox("Matcher", reid.METHODS, key="set_method",
-                         help="Random Forest and weighted fusion combine all evidence; the other two are baselines.")
-            st.toggle("Cameras share a clock", key="set_same_clock",
-                      help="Only match sightings close in time (turn off for videos recorded at different times).")
-            st.slider("Max time gap between cameras (s)", 1, 60, key="set_gap", disabled=not setting("same_clock"))
-            st.slider("Minimum score for a suggestion", 0.0, 1.0, step=0.05, key="set_min_score")
+        st.markdown(f"**Processed cameras** · {len(view)} vehicle sightings")
+        for v in active:
+            st.markdown(f"- {v} · {sum(t['video'] == v for t in view.tracklets)}")
+        if not active:
+            st.caption("Nothing processed yet.")
 
+        with st.expander("Settings"):
+            st.slider("Same-vehicle threshold (Re-ID similarity)", 0.2, 0.9, step=0.05, key="threshold",
+                      help="The best sighting in another camera counts as the selected vehicle when its FastReID "
+                           "similarity is at least this value and clearly above the camera's next-best sighting.")
+            st.toggle("Videos were recorded at the same time", key="same_clock",
+                      help="Then a vehicle can only reappear within a few seconds in another camera. Turn off for "
+                           "videos recorded at different times.")
+            st.slider("Max seconds between cameras", 2, 60, key="max_gap", disabled=not st.session_state.same_clock)
         st.divider()
         st.caption(f"Signed in as **{st.session_state.admin_user}**")
         if st.button("Sign out", width="stretch"):
@@ -212,204 +209,130 @@ def sidebar():
 
 
 # ------------------------------------------------------------------ search page
-def vehicle_card(t, key, button="Select", note=None):
-    with st.container(border=True):
-        st.image(thumb(t["crop_paths"][len(t["crop_paths"]) // 2]), width="stretch")
-        st.markdown(f"**{t['camera']}**  \n{when(t)}")
-        st.caption(note or f"{top_label(t['color_probs'], config.COLORS)} · {top_label(t['type_probs'], config.TYPES)}")
-        if st.button(button, key=key, width="stretch"):
-            st.session_state.query, st.session_state.hops = t["uid"], {}
-            st.rerun()
-
-
-def grid(items, per_row, render):
-    for start in range(0, len(items), per_row):
-        for col, item in zip(st.columns(per_row), items[start:start + per_row]):
-            with col:
-                render(item)
-
-
-def find_vehicle():
-    st.subheader("① Find the vehicle")
-    how = st.segmented_control("How", ["Describe it", "Pick it from a camera"], default="Describe it",
-                               label_visibility="collapsed", key="find_mode")
-    if how == "Pick it from a camera":
-        cam = st.selectbox("Camera", active, key="pick_camera")
-        ts = sorted((t for t in view.tracklets if t["video"] == cam), key=lambda t: t["start_t"])
-        st.caption(f"{len(ts)} vehicles in {cam}, in order of appearance.")
-        grid(ts, 6, lambda t: vehicle_card(t, f"pick_{t['uid']}"))
-        return
-
+def describe():
+    st.subheader("1 · Describe the vehicle")
     with st.form("describe"):
-        c1, c2, c3, c4 = st.columns([1, 1, 1, 0.6], vertical_alignment="bottom")
+        c1, c2, c3 = st.columns(3)
         color = c1.selectbox("Colour", ["any"] + config.COLORS)
         vtype = c2.selectbox("Type", ["any"] + config.TYPES)
-        plate = c3.text_input("Plate (use ? for unknown)", placeholder="e.g. SGX12??")
-        go = c4.form_submit_button("Search", type="primary", width="stretch")
-        with st.expander("More detail (optional)"):
-            cues = st.multiselect("Distinctive features", list(config.CUES))
-            free_text = st.text_input("Anything else", placeholder="e.g. taxi with roof sign")
+        plate = c3.text_input("Licence plate (full or partial, ? = unknown)", placeholder="e.g. SGX12??")
+        c4, c5 = st.columns(2)
+        cues = c4.multiselect("Distinctive features", list(config.CUES))
+        free_text = c5.text_input("Anything else", placeholder="e.g. taxi with a roof sign")
+        go = st.form_submit_button("Search", type="primary")
     if go:
-        st.session_state.stage1 = search.describe_search(
+        st.session_state.query = None
+        st.session_state.results = search.describe_search(
             view, None if color == "any" else color, None if vtype == "any" else vtype, plate or None, cues,
             free_text or None, get_extractor() if free_text else None, None, 12)
-    results = st.session_state.get("stage1", [])
-    if results:
-        st.caption("Best matches first. Select the right vehicle to see where else it was seen.")
-        grid([(i, t) for i, (_, t, _) in enumerate(results, 1)], 6,
-             lambda it: vehicle_card(it[1], f"res_{it[1]['uid']}", note=f"#{it[0]} · "
-                                     f"{top_label(it[1]['color_probs'], config.COLORS)} · "
-                                     f"{top_label(it[1]['type_probs'], config.TYPES)}"))
 
 
-def where_else(q):
-    hops = st.session_state.setdefault("hops", {})
-    gap = setting("gap") if setting("same_clock") else None
-    method = setting("method")
-    members = [q] + [view.get(u) for u in hops.values()]
-    suggested = {t["video"]: t["uid"] for _, t in reid.trace_path(view, q, method, rf, setting("min_score"), gap)
-                 if t["uid"] != q["uid"]}
+def matches():
+    results = st.session_state.get("results")
+    if not results:
+        return
+    st.subheader("2 · Best matches")
+    st.caption("Ranked by how well each tracked vehicle fits the description. Select the one you are looking for.")
+    for start in range(0, len(results), 6):
+        for col, (rank, (score, t, _)) in zip(st.columns(6), enumerate(results[start:start + 6], start + 1)):
+            with col.container(border=True):
+                st.image(crop(t), width="stretch")
+                st.markdown(f"**#{rank} · {t['camera']}**  \n{when(t)}")
+                st.caption(f"{top_label(t['color_probs'], config.COLORS)} · {top_label(t['type_probs'], config.TYPES)}"
+                           f"{' · ' + t['plate'] if t.get('plate') else ''} · match {score:.0%}")
+                selected = st.session_state.get("query") == t["uid"]
+                st.button("✓ Selected" if selected else "Select", key=f"sel_{t['uid']}", width="stretch",
+                          type="primary" if selected else "secondary",
+                          on_click=st.session_state.__setitem__, args=("query", t["uid"]))
 
-    # ---- the query and its route
-    st.subheader("② Its route across the cameras")
-    route = sorted(members + [view.get(u) for v, u in suggested.items() if v not in hops], key=lambda t: t["start_t"])
-    cols = st.columns(max(len(route) * 2 - 1, 1))
-    for k, t in enumerate(route):
-        with cols[2 * k]:
-            with st.container(border=True):
-                st.image(thumb(t["crop_paths"][0]), width="stretch")
-                st.markdown(f"**{t['camera']}**  \n{when(t)}")
-                st.caption("🎯 your vehicle" if t["uid"] == q["uid"] else
-                           "✅ confirmed" if t["uid"] in hops.values() else "⭐ suggested – confirm below")
-        if k < len(route) - 1:
-            cols[2 * k + 1].markdown("<h2 style='text-align:center;margin-top:4rem'>→</h2>", unsafe_allow_html=True)
-    if st.button("← Choose a different vehicle"):
-        st.session_state.pop("query")
-        st.rerun()
 
-    # ---- ranked matches per camera (query + ranked gallery, like a Re-ID result list)
-    st.subheader("③ Where else was it seen?")
-    st.caption("Best matches in each other camera, ranked by how similar they are to every confirmed view of your "
-               "vehicle. Click ✓ on the right one; the other cameras update. ⭐ = suggested.")
-    cams = reid.camera_candidates(view, members, method, rf, gap, k=3)
-    for video in sorted(set(cams) | set(hops)):
+def seen_in(q):
+    st.subheader("3 · Where this vehicle was seen")
+    gap = st.session_state.max_gap if st.session_state.same_clock else None
+    seen = reid.where_seen(view, q, st.session_state.threshold, max_gap_s=gap)
+    route = reid.route(seen)
+    st.markdown("**Route:** " + "  →  ".join(f"{t['camera']} ({fmt_time(t['start_t'])})" for t in route))
+    st.caption(f"Seen in {len(route)} of {len(seen)} cameras. Similarity is the FastReID (VeRi-776) Re-ID score "
+               "against the selected vehicle.")
+
+    for t in route:
+        score = seen[t["video"]]["match"][0]
         with st.container(border=True):
-            if video in hops:
-                t = view.get(hops[video])
-                a, b, c = st.columns([1, 4, 1], vertical_alignment="center")
-                a.image(thumb(t["crop_paths"][0]), width="stretch")
-                b.markdown(f"**{video}** · ✅ confirmed at {when(t)}")
-                c.button("Undo", key=f"undo_{video}", on_click=hops.pop, args=(video,), width="stretch")
-                continue
-            head, *slots = st.columns([1.2, 1, 1, 1], vertical_alignment="center")
-            head.markdown(f"**{video}**")
-            head.caption("ranked matches →")
-            for rank, (slot, (score, t)) in enumerate(zip(slots, cams[video]), 1):
-                with slot:
-                    st.image(thumb(t["crop_paths"][0]), width="stretch")
-                    st.caption(f"{'⭐ ' if suggested.get(video) == t['uid'] else ''}#{rank} · {when(t)} · {score:.0%}")
-                    st.button("✓ Same vehicle", key=f"hop_{t['uid']}", on_click=hops.__setitem__,
-                              args=(video, t["uid"]), width="stretch")
+            a, b, c = st.columns([1.3, 1, 1.7], vertical_alignment="center")
+            with a:
+                st.markdown(f"#### {t['camera']}")
+                st.markdown(f"🕒 **{when(t)}**  \n({t['end_t'] - t['start_t']:.1f} s on camera)")
+                st.caption("🎯 the vehicle you selected" if t["uid"] == q["uid"] else f"✅ same vehicle · similarity {score:.2f}")
+            b.image(crop(t), width="stretch")
+            c.image(t["frame_path"], width="stretch", caption=f"{t['camera']} at {fmt_time(t['best_t'])}")
 
-    with st.expander("Why these matches? (evidence for each candidate)"):
-        hits = reid.reid_search(view, q, method, rf, top_k=15, max_gap_s=gap)
-        rows = [{"rank": i, "camera": t["camera"], "time": when(t), "score": round(s, 2),
-                 **{k: round(v, 2) for k, v in f.items()}} for i, (s, t, f) in enumerate(hits, 1)]
-        st.dataframe(pd.DataFrame(rows), hide_index=True)
-        st.caption("Each row is the evidence vector compared by the matcher: learned-metric, ResNet and CLIP "
-                   "similarity, colour and type agreement, plate similarity, distinctive cues and track quality.")
+    missing = [(v, s) for v, s in seen.items() if not s["match"]]
+    if missing:
+        st.markdown("**Not seen in**")
+        for video, s in missing:
+            with st.container(border=True):
+                a, *slots = st.columns([1.2, 1, 1, 1], vertical_alignment="center")
+                a.markdown(f"**{video}**")
+                if not s["candidates"]:
+                    a.caption("no vehicle in the time window")
+                    continue
+                a.caption("no confident match; closest vehicles →")
+                for slot, (score, t) in zip(slots, s["candidates"]):
+                    slot.image(crop(t), width="stretch")
+                    slot.caption(f"{when(t)} · similarity {score:.2f}")
 
 
 def search_page():
     st.title("Find a vehicle across cameras")
-    st.markdown(":green[**DESCRIBE → SEARCH → CONFIRM → RE-IDENTIFY → TRACE**]")
-    st.caption("Results are ranked candidates for human review, not definitive identification.")
+    st.markdown(":green[**DESCRIBE → RANK → SELECT → TRACE**]")
+    st.caption("Results are ranked candidates for a person to review, not a definitive identification.")
     if not len(view):
-        st.info("No cameras loaded. Add your own videos in the sidebar (Use your own videos).")
+        st.info("No processed videos. Choose the demo videos or upload your own in the sidebar.")
         return
-    q = view.get(st.session_state["query"]) if st.session_state.get("query") in {t["uid"] for t in view.tracklets} else None
-    if q is None:
-        find_vehicle()
+    describe()
+    matches()
+    uids = {t["uid"] for t in view.tracklets}
+    if st.session_state.get("query") in uids:
+        seen_in(view.get(st.session_state.query))
+
+
+# ------------------------------------------------------------------ about page
+def about_page():
+    st.title("How V-Trace works")
+    st.markdown("""
+V-Trace uses **only pretrained, published models** - nothing is trained for this project.
+
+| Step | Model | Source |
+|---|---|---|
+| Detect vehicles in every frame | YOLO11n (COCO: car, motorcycle, bus, truck) | Ultralytics |
+| Follow each vehicle while it stays in view (one *sighting*) | ByteTrack | Ultralytics |
+| Colour, type, distinctive features, free text | CLIP ViT-B/32, zero-shot | OpenAI / open_clip |
+| Licence plate | EasyOCR | JaidedAI |
+| Same vehicle in another camera | FastReID SBS(R50-ibn) trained on VeRi-776 | JDAI-CV (VeRi-776 authors' team) |
+
+**Same vehicle in another camera?** For the selected sighting, each other camera's most similar sighting counts as the
+same vehicle when its Re-ID similarity is at least the threshold (default 0.40), it clearly beats that camera's
+second-best sighting (by 0.08; otherwise the answer is ambiguous and the closest vehicles are shown instead) and, for
+videos recorded at the same time, it is within 10 s.
+""")
+    st.subheader("Re-ID model on the VeRi-776 benchmark")
+    mfile = config.RESULTS_DIR / "veri_eval.json"
+    if mfile.exists():
+        m = json.loads(mfile.read_text())
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Rank-1", f"{m['rank1']:.1f}%")
+        c2.metric("Rank-5", f"{m['rank5']:.1f}%")
+        c3.metric("mAP", f"{m['mAP']:.1f}%")
+        st.caption(f"Our run of the published checkpoint on the official VeRi-776 split ({m['queries']} queries, "
+                   f"{m['gallery']} gallery images). FastReID reports Rank-1 97.0 %, mAP 81.9 %.")
     else:
-        where_else(q)
-
-
-# ------------------------------------------------------------------ analysis page
-def analysis_page():
-    st.title("Analysis")
-    st.caption("How well V-Trace works, and the tools used to check it.")
-    tabs = st.tabs(["Benchmark results (VeRi-776)", "Vehicle map (SOM)", "Tracking check"])
-
-    with tabs[0]:
-        mfile = config.RESULTS_DIR / "metrics.json"
-        if not mfile.exists():
-            st.info("Run `python scripts/train_eval.py` after downloading VeRi-776 (see README).")
-        else:
-            m = json.loads(mfile.read_text())
-            hid = m["reid"]["hidden"]
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Re-ID mAP, plates hidden", f"{hid['learned metric']['mAP']:.0f}%",
-                      f"{hid['learned metric']['mAP'] - hid['appearance only']['mAP']:+.0f} vs generic embedding")
-            c2.metric("Right vehicle in top 5 (colour + type + partial plate)",
-                      f"{m['description_search']['colour + type + partial plate']['rank5']:.0f}%")
-            c3.metric("Plate-only mAP, clear → hidden plates",
-                      f"{m['reid']['clear']['plate_sim']['mAP']:.0f}% → {hid['plate_sim']['mAP']:.1f}%")
-            st.markdown("**Re-ID mAP (%) by plate visibility**")
-            names = {"appearance only": "Appearance only", "learned metric": "Learned metric",
-                     "plate_sim": "Plate only", "weighted fusion": "Weighted fusion", "random forest": "Random Forest"}
-            st.dataframe(pd.DataFrame({lvl: {n: round(m["reid"][lvl][k]["mAP"], 1) for k, n in names.items()}
-                                       for lvl in m["reid"]}), width="stretch")
-            imgs = [p for p in ("plate_robustness.png", "ablation.png") if (config.RESULTS_DIR / p).exists()]
-            for col, p in zip(st.columns(2), imgs):
-                col.image(str(config.RESULTS_DIR / p))
-            with st.expander("All numbers"):
-                st.json(m, expanded=False)
-
-    with tabs[1]:
-        st.write("A Self-Organizing Map groups visually similar vehicles without any labels. "
-                 "Darker cells mark boundaries between groups.")
-        if view.som is None:
-            st.info("Needs at least 4 vehicles.")
-        else:
-            som = view.som
-            bmus = som.bmus(view.matrix("app_emb"))
-            ink = "#E6EEF0" if st.context.theme.type == "dark" else "#111820"   # match the active app theme
-            fig, ax = plt.subplots(figsize=(5, 5))
-            fig.patch.set_alpha(0)
-            ax.tick_params(colors=ink)
-            ax.imshow(som.u_matrix().T, cmap="bone_r", origin="lower")
-            rng = np.random.default_rng(0)
-            for (i, j), t in zip(bmus, view.tracklets):
-                ax.scatter(i + rng.uniform(-.3, .3), j + rng.uniform(-.3, .3), s=25, edgecolors="k",
-                           c=config.COLORS[int(np.argmax(t["color_probs"]))].replace("golden", "goldenrod"))
-            ax.set_title(f"{som.grid}x{som.grid} SOM · dots = vehicles (predicted colour)", color=ink)
-            c1, c2 = st.columns(2)
-            c1.pyplot(fig)
-            nodes = defaultdict(list)
-            for b, t in zip(bmus, view.tracklets):
-                nodes[b].append(t)
-            with c2:
-                for node, group in sorted(nodes.items(), key=lambda kv: -len(kv[1]))[:8]:
-                    st.markdown(f"**Group {node}** – {len(group)} vehicles")
-                    st.image([g["crop_paths"][0] for g in group[:8]], width=70)
-
-    with tabs[2]:
-        st.write("Untick vehicles whose track mixes two vehicles (an ID switch). This gives a manually checked "
-                 "tracking accuracy.")
-        if len(view):
-            vid = st.selectbox("Camera", view.videos(), key="review_video")
-            ts = [t for t in view.tracklets if t["video"] == vid]
-            review_file = config.RESULTS_DIR / f"tracking_review_{vid}.csv"
-            prev = pd.read_csv(review_file).set_index("uid")["clean"].to_dict() if review_file.exists() else {}
-            grid(ts, 8, lambda t: st.image(t["crop_paths"][0], caption=f"track {t['track_id']}"))
-            df = pd.DataFrame([{"uid": t["uid"], "track": t["track_id"], "time": when(t),
-                                "clean": bool(prev.get(t["uid"], True))} for t in ts])
-            edited = st.data_editor(df, hide_index=True, disabled=["uid", "track", "time"], key=f"editor_{vid}")
-            if st.button("Save check"):
-                edited[["uid", "clean"]].to_csv(review_file, index=False)
-                st.success(f"Saved: {edited['clean'].mean():.0%} of {len(edited)} tracks are clean.")
+        st.info("Run `python scripts/eval_veri.py` with VeRi-776 downloaded to reproduce the benchmark numbers.")
+    demo = config.RESULTS_DIR / "demo_eval.json"
+    if demo.exists():
+        st.subheader("On the demo cameras")
+        st.json(json.loads(demo.read_text()), expanded=False)
 
 
 sidebar()
 st.navigation([st.Page(search_page, title="Search", icon=":material/search:", default=True),
-               st.Page(analysis_page, title="Analysis", icon=":material/analytics:")]).run()
+               st.Page(about_page, title="How it works", icon=":material/info:")]).run()

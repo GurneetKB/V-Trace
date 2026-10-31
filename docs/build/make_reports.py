@@ -22,72 +22,28 @@ AUTHOR = "Gurneet Kaur Bhuller (A0354164E) · Group 21"
 COURSE = "Graduate Certificate in Pattern Recognition Systems · Practice Module"
 
 
-def _table(header, rows):
-    return "\n".join(["| " + " | ".join(header) + " |", "|" + "---|" * len(header)] +
-                     ["| " + " | ".join(str(c) for c in r) + " |" for r in rows])
-
-
 def fill(md):
-    m = json.loads((RES / "metrics.json").read_text())
+    v = json.loads((RES / "veri_eval.json").read_text())
     d = json.loads((RES / "demo_eval.json").read_text())
-    f1 = lambda v: f"{v:.1f}"
-    vals = {}
-    for prefix, methods in (("", d["methods"]), ("nw", d["methods_no_window"])):
-        for key, name in (("rf", "random forest"), ("app", "appearance only"), ("lm", "learned metric"), ("wf", "weighted fusion")):
-            vals.update({f"{key}{prefix}.{k}": v for k, v in methods[name].items()})
-    vals.update({f"tracking.{k}": v for k, v in d["tracking"].items()})
-    vals.update({k: d[k] for k in ("vehicles_in_2plus_cameras", "vehicles_in_all_3")})
-    vals["tracklets_total"] = sum(d["tracklets"].values())
-    vals["tracklets_by_camera"] = ", ".join(f"{k} {v}" for k, v in d["tracklets"].items())
-    vals["fail.score"] = f"{d['failure_example']['score']:.2f}"
-    hid = m["reid"]["hidden"]
-    vals.update({"veri.metric.r1": f1(hid["learned metric"]["rank1"]), "veri.metric.map": f1(hid["learned metric"]["mAP"]),
-                 "veri.app.r1": f1(hid["appearance only"]["rank1"]), "veri.app.map": f1(hid["appearance only"]["mAP"])})
-    vals.update({f"imp.{k}": f"{v:.2f}" for k, v in m["rf_feature_importance"].items()})
-    som = m["som"]
-    vals.update({"som.id": f"{som['purity_vehicle_id']:.2f}", "som.colour": f"{som['purity_color']:.2f}",
-                 "som.type": f"{som['purity_type']:.2f}"})
-
-    a = m["attributes"]
-    vals["table.attributes"] = _table(["Attribute", "CLIP zero-shot", "Supervised linear probe"],
-        [[k.capitalize() if k == "type" else "Colour", f1(v["zero_shot_acc"]), f"**{f1(v['linear_probe_acc'])}**"] for k, v in a.items()])
-    vals["table.description"] = _table(["Query", "Rank-1", "Rank-5", "mAP"],
-        [[k, f1(v["rank1"]), f1(v["rank5"]), f1(v["mAP"])] for k, v in m["description_search"].items()])
-    names = {"learned metric": "Learned metric (LDA) only", "weighted fusion": "Weighted fusion (all cues)",
-             "random forest": "Random Forest (all cues)", "clip_cos": "CLIP cosine only",
-             "appearance only": "ResNet-50 appearance only", "color_hist": "HSV colour histogram only",
-             "color_agree": "colour agreement only", "type_agree": "type agreement only",
-             "cue_sim": "distinctive-cue agreement only"}
-    order = sorted(names, key=lambda k: -hid[k]["mAP"])
-    vals["table.ablation"] = _table(["Method", "Rank-1", "Rank-5", "mAP"],
-        [[names[k], f1(hid[k]["rank1"]), f1(hid[k]["rank5"]), f1(hid[k]["mAP"])] for k in order])
-    levels = ["clear", "partial", "blurred", "hidden"]
-    pm = [("Appearance only", "appearance only"), ("Learned metric only", "learned metric"), ("Plate only", "plate_sim"),
-          ("Weighted fusion", "weighted fusion"), ("Random Forest", "random forest")]
-    best = {l: max(m["reid"][l][k]["mAP"] for _, k in pm if k != "plate_sim") for l in levels}
-    vals["table.plates"] = _table(["Method"] + [l.capitalize() for l in levels],
-        [[n] + [(f"**{f1(m['reid'][l][k]['mAP'])}**" if k != "plate_sim" and m["reid"][l][k]["mAP"] == best[l]
-                 else f1(m["reid"][l][k]["mAP"])) for l in levels] for n, k in pm])
-    vals["table.som"] = _table(["Radius", "Candidates kept", "True matches kept", "Rank-1", "mAP"],
-        [[r.split("_")[1], f"{v['candidates_kept_%']:.1f}%", f"{v['true_match_recall_%']:.1f}%", f1(v["rank1"]), f1(v["mAP"])]
-         for r, v in som["prefilter"].items()] + [["no pre-filter", "100%", "100%", f1(hid["random forest"]["rank1"]),
-                                                   f1(hid["random forest"]["mAP"])]])
-    cols = ["Rank-1", "Rank-5", "mAP", "route_precision", "route_recall", "camera_hit@1", "camera_hit@3"]
-    head = ["Method", "Rank-1", "Rank-5", "mAP", "Route precision", "Route recall", "Camera hit@1", "Camera hit@3"]
-    for key, methods in (("table.demo", d["methods"]), ("table.demo_nowindow", d["methods_no_window"])):
-        vals[key] = _table(head, [[n.capitalize()] + [f1(v[c]) for c in cols] for n, v in methods.items()])
-
-    def sub(mt):
-        k = mt.group(1).strip()
-        v = vals[k]
-        if isinstance(v, float):
-            if "purity" in k:
-                return f"{v:.2f}"
-            if "per_vehicle" in k:
-                return f"{v:.2f}"
-            return f"{v:.0f}"
-        return str(v)
-    out = re.sub(r"\{\{([^}]+)\}\}", sub, md)
+    r = d["reid"]
+    same, diff = v["same_vehicle_similarity_percentiles_10_50_90"], v["different_vehicle_similarity_percentiles_50_99_99.9"]
+    th = v[f"threshold_{r['threshold']}"]
+    vals = {"veri.rank1": f"{v['rank1']:.1f}", "veri.rank5": f"{v['rank5']:.1f}", "veri.mAP": f"{v['mAP']:.1f}",
+            "veri.queries": f"{v['queries']:,}", "veri.gallery": f"{v['gallery']:,}",
+            "veri.same10": f"{same[0]:.2f}", "veri.same50": f"{same[1]:.2f}", "veri.diff99": f"{diff[1]:.2f}",
+            "veri.keep_same": f"{th['same_vehicle_kept_%']:.0f}", "veri.keep_diff": f"{th['different_vehicle_kept_%']:.1f}",
+            "demo.tracklets_total": sum(d["tracklets"].values()),
+            "demo.tracklets_by_camera": ", ".join(f"{k} {n}" for k, n in d["tracklets"].items()),
+            "demo.vehicles_in_2plus_cameras": d["vehicles_in_2plus_cameras"], "demo.vehicles_in_all_3": d["vehicles_in_all_3"],
+            "demo.queries": r["queries"], "demo.Rank-1": f"{r['Rank-1']:.0f}", "demo.Rank-5": f"{r['Rank-5']:.0f}",
+            "demo.mAP": f"{r['mAP']:.0f}", "demo.camera_precision": f"{r['same_clock']['camera_precision_%']:.0f}",
+            "demo.camera_recall": f"{r['same_clock']['camera_recall_%']:.0f}",
+            "demo.false_camD": f"{r['same_clock']['queries_wrongly_seen_in_camD_%']:.0f}",
+            "demo.precision_nw": f"{r['no_time_window']['camera_precision_%']:.0f}",
+            "demo.recall_nw": f"{r['no_time_window']['camera_recall_%']:.0f}",
+            "demo.false_camD_nw": f"{r['no_time_window']['queries_wrongly_seen_in_camD_%']:.0f}",
+            "demo.clean": f"{d['tracking']['clean_tracklets_%']:.0f}"}
+    out = re.sub(r"\{\{([^}]+)\}\}", lambda mt: str(vals[mt.group(1).strip()]), md)
     left = re.findall(r"\{\{[^}]+\}\}", out)
     assert not left, left
     return out
